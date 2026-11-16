@@ -1,0 +1,50 @@
+{
+  "name": "xiezuotai",
+  "productName": "写作台",
+  "version": "2.3.5",
+  "description": "写作台 · 写作软件（配色/荧光笔/格线/剧本模式/多层子文件/多格式导出/壁纸）",
+  "main": "main.js",
+  "author": "同人制作组",
+  "license": "MIT",
+  "compression": "maximum",
+  "devDependencies": {
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0",
+    "rcedit": "^5.0.2"
+  },
+  "build": {
+    "appId": "com.xiezuotai.app",
+    "productName": "写作台",
+    "copyright": "Copyright © 2026 同人制作组",
+    "directories": { "output": "dist" },
+    "files": [
+      "main.js",
+      "preload.js",
+      "exporters.js",
+      "i18n.js",
+      "index.html",
+      "assets/**",
+      "package.json"
+    ],
+    "afterPack": "./build/afterPack.js",
+    "asar": true,
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "assets/icon.ico",
+      "artifactName": "写作台-安装包-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "写作台",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

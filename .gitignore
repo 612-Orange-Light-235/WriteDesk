@@ -1,0 +1,20 @@
+# 依赖与构建产物
+node_modules/
+dist/
+pnpm-lock.yaml
+package-lock.json
+
+# 自测产物
+*.ok.txt
+*.err.txt
+selftest-*.png
+selftest-*.json
+selftest-*.pdf
+packaged-*.png
+packaged-*.json
+final-*.png
+final-*.json
+
+# 系统
+.DS_Store
+Thumbs.db

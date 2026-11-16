@@ -18,3 +18,7 @@ final-*.json
 # 系统
 .DS_Store
 Thumbs.db
+
+# 发版用的临时文件
+_release-notes.md
+_gh-*.log*

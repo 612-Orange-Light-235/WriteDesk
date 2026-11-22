@@ -167,6 +167,14 @@ function buildHtml(payload, opts) {
       h.push('<div class="meta">' + n.tags.map(function (t) { return '<span class="tag">' + hesc(t) + '</span>'; }).join('') + '</div>');
     }
     for (const b of (n.blocks || [])) {
+      if (b.img) {
+        const d = imageData(b.img);
+        const src = d ? ('data:' + imageMime(d.ext) + ';base64,' + d.buf.toString('base64')) : (b.img.dataUrl || b.img.src || '');
+        if (!src) continue;
+        const width = b.img.width ? ' style="max-width:100%;width:' + Math.round(b.img.width) + 'px;height:auto"' : ' style="max-width:100%;height:auto"';
+        h.push('<p style="text-align:center"><img src="' + hesc(src) + '"' + width + ' alt=""></p>');
+        continue;
+      }
       if (!b.runs || !b.runs.length) { h.push('<p><br></p>'); continue; }
       const pCls = b.desc ? ' class="desc"' : '';
       h.push('<p' + pCls + '>' + b.runs.map(function (r) {
@@ -189,6 +197,23 @@ function buildHtml(payload, opts) {
   return h.join('\n');
 }
 function escCss(s) { return String(s || '').replace(/["\\]/g, ''); }
+function imageData(img) {
+  if (!img) return null;
+  if (img.data && Buffer.isBuffer(img.data)) return { buf: img.data, ext: (img.ext || 'png').toLowerCase().replace('jpeg', 'jpg') };
+  if (img.dataUrl) {
+    const m = String(img.dataUrl).match(/^data:image\/([a-z0-9.+-]+);base64,(.+)$/i);
+    if (m) return { buf: Buffer.from(m[2], 'base64'), ext: m[1].toLowerCase().replace('jpeg', 'jpg') };
+  }
+  if (img.src) {
+    const m = String(img.src).match(/^data:image\/([a-z0-9.+-]+);base64,(.+)$/i);
+    if (m) return { buf: Buffer.from(m[2], 'base64'), ext: m[1].toLowerCase().replace('jpeg', 'jpg') };
+  }
+  return null;
+}
+function imageMime(ext) {
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  return 'image/' + ext;
+}
 
 /* ---------------- DOCX ---------------- */
 function runXml(r, baseSize) {
@@ -214,8 +239,33 @@ function paraXml(runs, opts) {
   pPr += '<w:jc w:val="both"/></w:pPr>';
   return '<w:p>' + pPr + (runs && runs.length ? runs.map(function (r) { return runXml(r, size); }).join('') : '') + '</w:p>';
 }
+function docxImageSize(img) {
+  const d = imageData(img);
+  if (!d) return null;
+  const dim = imageSize(d.buf) || {};
+  let w = Number(img.width) || Number(img.naturalW) || dim.w || 600;
+  let h = Number(img.naturalH) || (dim.w ? (dim.h * (w / dim.w)) : (w * 0.66));
+  if (!w || !h) { w = 600; h = 400; }
+  let cx = Math.round(w * 9525), cy = Math.round(h * 9525);
+  const maxEmu = 5800000; // 约 6.1 英寸，A4 正文宽度内
+  if (cx > maxEmu) { cy = Math.round(cy * maxEmu / cx); cx = maxEmu; }
+  return { d: d, cx: cx, cy: cy };
+}
+function docxImageXml(relId, name, cx, cy, idx) {
+  return '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="80" w:after="80"/></w:pPr>' +
+    '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">' +
+    '<wp:extent cx="' + cx + '" cy="' + cy + '"/>' +
+    '<wp:docPr id="' + (idx + 1) + '" name="Picture ' + (idx + 1) + '"/>' +
+    '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+    '<pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="' + xesc(name) + '"/><pic:cNvPicPr/></pic:nvPicPr>' +
+    '<pic:blipFill><a:blip r:embed="' + relId + '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>' +
+    '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>' +
+    '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic>' +
+    '</a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
+}
 function buildDocx(payload) {
   const body = [];
+  const media = [];
   const fontName = payload.fontFamily || 'Microsoft YaHei';
   body.push('<w:p><w:pPr><w:spacing w:after="120"/><w:jc w:val="left"/></w:pPr>' +
     '<w:r><w:rPr><w:rFonts w:ascii="' + xesc(fontName) + '" w:eastAsia="' + xesc(fontName) + '" w:hAnsi="' + xesc(fontName) + '"/>' +
@@ -230,6 +280,16 @@ function buildDocx(payload) {
       '<w:t xml:space="preserve">' + xesc(n.title || '未命名') + '</w:t></w:r></w:p>');
     if (n.tags && n.tags.length) body.push(paraXml([{ t: '标签：' + n.tags.join(' ') }], { size: 18 }));
     for (const b of (n.blocks || [])) {
+      if (b.img) {
+        const im = docxImageSize(b.img);
+        if (im) {
+          const ext = im.d.ext === 'jpeg' ? 'jpg' : im.d.ext;
+          const name = 'image' + (media.length + 1) + '.' + ext;
+          media.push({ name: name, data: im.d.buf, ext: ext });
+          body.push(docxImageXml('rIdImg' + media.length, name, im.cx, im.cy, media.length - 1));
+        }
+        continue;
+      }
       const runs = b.desc
         ? (b.runs || []).map(function (r) { return { t: r.t, i: 1, color: '#6F6563' }; })
         : (b.runs || []);
@@ -238,7 +298,10 @@ function buildDocx(payload) {
   }
   const doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
-    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
+    'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" ' +
+    'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ' +
+    'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
     '<w:body>' + body.join('') +
     '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1300" w:bottom="1440" w:left="1300" w:header="851" w:footer="992" w:gutter="0"/></w:sectPr>' +
     '</w:body></w:document>';
@@ -249,10 +312,14 @@ function buildDocx(payload) {
     '<w:pPrDefault><w:pPr><w:spacing w:line="380" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>' +
     '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>' +
     '</w:styles>';
+  const imgExts = Array.from(new Set(media.map(function (m) { return m.ext; })));
+  const imgDefaults = imgExts.map(function (ext) {
+    return '<Default Extension="' + ext + '" ContentType="' + imageMime(ext) + '"/>';
+  }).join('');
   const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' + imgDefaults +
     '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
     '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
     '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>' +
@@ -267,6 +334,9 @@ function buildDocx(payload) {
   const docRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
     '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    media.map(function (m, i) {
+      return '<Relationship Id="rIdImg' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + m.name + '"/>';
+    }).join('') +
     '</Relationships>';
   const core = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" ' +
@@ -278,7 +348,7 @@ function buildDocx(payload) {
   const app = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">' +
     '<Application>写作台</Application></Properties>';
-  return zip([
+  const files = [
     { name: '[Content_Types].xml', data: contentTypes },
     { name: '_rels/.rels', data: rootRels },
     { name: 'word/document.xml', data: doc },
@@ -286,7 +356,9 @@ function buildDocx(payload) {
     { name: 'word/styles.xml', data: styles },
     { name: 'docProps/core.xml', data: core },
     { name: 'docProps/app.xml', data: app }
-  ]);
+  ];
+  media.forEach(function (m) { files.push({ name: 'word/media/' + m.name, data: m.data }); });
+  return zip(files);
 }
 
 /* ---------------- XLSX ---------------- */
@@ -320,7 +392,10 @@ function dialogueRows(payload) {
     let lineNo = 0;
     (n.blocks || []).forEach(function (b) {
       lineNo++;
-      const text = (b.runs || []).map(function (r) { return r.t || ''; }).join('').trim();
+      const raw = (b.runs || []).map(function (r) { return r.t || ''; }).join('').trim();
+      if (!raw) return;
+      // 剧本模式下每行以「-」开头；统计台词表时去掉这个前缀
+      const text = raw.replace(/^[-–—]\s*/, '');
       if (!text) return;
       const m = text.match(/^【?([^：:【】]{1,20})】?\s*[：:]\s*(.+)$/);
       let who = '旁白', kind = '旁白', body = text;
@@ -503,6 +578,45 @@ function buildPptx(payload, templateDir) {
   return zip(files);
 }
 
+/* ---------------- 图片尺寸（PNG/JPEG/GIF/BMP/WebP） ---------------- */
+function imageSize(buf) {
+  if (!buf || !buf.length) return null;
+  try {
+    if (buf.length > 24 && buf.readUInt32BE(0) === 0x89504E47) {
+      return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+    }
+    if (buf.length > 10 && buf.toString('ascii', 0, 3) === 'GIF') {
+      return { w: buf.readUInt16LE(6), h: buf.readUInt16LE(8) };
+    }
+    if (buf.length > 26 && buf.toString('ascii', 0, 2) === 'BM') {
+      return { w: Math.abs(buf.readInt32LE(18)), h: Math.abs(buf.readInt32LE(22)) };
+    }
+    if (buf.length > 30 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') {
+      var f = buf.toString('ascii', 12, 16);
+      if (f === 'VP8X') return { w: 1 + buf.readUIntLE(24, 3), h: 1 + buf.readUIntLE(27, 3) };
+      if (f === 'VP8 ') return { w: buf.readUInt16LE(26) & 0x3FFF, h: buf.readUInt16LE(28) & 0x3FFF };
+      if (f === 'VP8L') {
+        var b = buf.readUInt32LE(21);
+        return { w: (b & 0x3FFF) + 1, h: ((b >> 14) & 0x3FFF) + 1 };
+      }
+    }
+    if (buf.length > 4 && buf[0] === 0xFF && buf[1] === 0xD8) {
+      var i = 2;
+      while (i + 9 < buf.length) {
+        if (buf[i] !== 0xFF) { i++; continue; }
+        var marker = buf[i + 1];
+        if (marker === 0xD8 || marker === 0xD9 || (marker >= 0xD0 && marker <= 0xD7)) { i += 2; continue; }
+        var len = buf.readUInt16BE(i + 2);
+        if (marker >= 0xC0 && marker <= 0xCF && marker !== 0xC4 && marker !== 0xC8 && marker !== 0xCC) {
+          return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+        }
+        i += 2 + len;
+      }
+    }
+  } catch (e) { }
+  return null;
+}
+
 module.exports = {
   buildTxt: buildTxt,
   buildMarkdown: buildMarkdown,
@@ -514,5 +628,6 @@ module.exports = {
   noteCharCount: noteCharCount,
   notePlain: notePlain,
   nowStr: nowStr,
+  imageSize: imageSize,
   zip: zip
 };

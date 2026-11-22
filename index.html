@@ -6,11 +6,13 @@
 <style>
   :root{
     --bg:#f6f2ec; --panel:#fffdfa; --panel2:#f0ebe3; --text:#2a2622; --muted:#8b827a;
+    --editor-text:#2a2622;
     --line:#e2d9cd; --accent:#a83232; --accent-soft:#f3e2e2; --fs:20px; --lh:1.95;
     --grid:rgba(150,120,90,.18); --font:"Microsoft YaHei";
   }
   body.dark{
     --bg:#171514; --panel:#201d1b; --panel2:#2a2523; --text:#eae3db; --muted:#9b9188;
+    --editor-text:#ffffff;
     --line:#352f2b; --accent:#c45c5c; --accent-soft:#3a2626; --grid:rgba(220,205,180,.13);
   }
   *{box-sizing:border-box}
@@ -70,6 +72,18 @@
   .ob-path{background:var(--panel2);border:1px dashed var(--line);border-radius:8px;
     padding:8px 12px;font-size:12px;color:var(--muted);word-break:break-all;margin:8px 0 4px}
   .ob-foot{border-top:1px solid var(--line);padding-top:12px}
+  .ob-dots{display:flex;gap:6px;margin:2px 0 12px;align-items:center}
+  .ob-dots i{width:8px;height:8px;border-radius:50%;background:var(--line);display:block;transition:all .2s}
+  .ob-dots i.on{width:20px;border-radius:5px;background:var(--accent)}
+  .ob-en{font-size:13px;font-weight:400;color:var(--muted);margin-left:4px}
+  .ob-features{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 10px}
+  .ob-feature{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:var(--panel2)}
+  .ob-feature b{display:block;font-size:13px;color:var(--text);margin-bottom:3px}
+  .ob-feature span{font-size:11px;line-height:1.55;color:var(--muted)}
+  .ob-code{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+    font-family:Consolas,"Microsoft YaHei",monospace;font-size:13px;color:var(--text);margin:10px 0;overflow:auto}
+  .ob-start{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .ob-start .tip{font-size:11px;margin:0}
   #obRoles{width:100%;min-height:96px}
   .fmt-sep{width:1px;height:18px;background:var(--line)}
   #scriptWrap{display:flex;align-items:center;gap:4px}
@@ -116,11 +130,13 @@
   .tree-row:hover .tree-add{visibility:visible}
   .tree-add:hover{color:var(--accent);background:var(--panel2)}
   .tree-empty{color:var(--muted);font-size:12px;padding:14px}
-  #editorWrap{display:flex;flex-direction:column;min-height:0;background:var(--panel)}
+  #editorWrap{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--panel)}
   #tabs{display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid var(--line);
-    overflow-x:auto;background:var(--panel2)}
+    overflow-x:auto;overflow-y:hidden;background:var(--panel2);scrollbar-width:thin}
+  #tabs::-webkit-scrollbar{height:6px}
+  #tabs::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
   .tab{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:8px;background:var(--panel);
-    border:1px solid var(--line);font-size:13px;white-space:nowrap;cursor:pointer;max-width:240px}
+    border:1px solid var(--line);font-size:13px;white-space:nowrap;cursor:pointer;max-width:240px;flex:none}
   .tab.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
   .tab-name{overflow:hidden;text-overflow:ellipsis}
   .tab-x{border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;line-height:1}
@@ -133,10 +149,20 @@
   #empty[hidden]{display:none}
   #editorPane{flex:1;display:flex;flex-direction:column;min-height:0}
   #editorPane[hidden]{display:none}
-  #title{border:none;background:transparent;color:var(--text);font-size:22px;font-weight:700;
-    padding:16px 28px 4px;outline:none;font-family:inherit;width:100%}
+  #titleRow{display:flex;align-items:center;gap:10px;padding:14px 28px 4px;flex:none}
+  #title{flex:1;min-width:0;border:none;background:transparent;color:var(--text);font-size:22px;font-weight:700;
+    padding:0;outline:none;font-family:inherit;width:100%}
+  #titleTag{flex:none;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:6px;
+    padding:2px 8px;background:var(--panel2);white-space:nowrap}
+  #editor img{max-width:100%;height:auto;border-radius:8px;display:block;margin:6px 0}
+  #editor .img-block{margin:8px 0}
+  #imgBox{position:absolute;display:none;border:1px solid var(--accent);border-radius:4px;
+    pointer-events:none;z-index:60;box-sizing:border-box}
+  #imgBox.on{display:block}
+  #imgHandle{position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;border-radius:4px;
+    background:var(--accent);border:1px solid #fff;pointer-events:auto;cursor:nwse-resize}
   #editorBox{flex:1;position:relative;min-height:0;overflow:hidden;display:flex}
-  #editor{flex:1;border:none;background:transparent;color:var(--text);font-size:var(--fs);
+  #editor{flex:1;border:none;background:transparent;color:var(--editor-text);font-size:var(--fs);
     line-height:var(--lh);padding:6px 28px 44px;outline:none;font-family:var(--font);min-height:0;
     width:100%;overflow-y:auto;background-attachment:local;white-space:pre-wrap;word-break:break-word}
   #editor.grid-line{background-image:repeating-linear-gradient(to bottom,transparent 0 calc(1lh - 1px),var(--grid) calc(1lh - 1px) 1lh)}
@@ -145,7 +171,10 @@
   #editor.grid-dot{background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);background-size:1em 1lh}
   #editor.grid-script{background-image:repeating-linear-gradient(to bottom,transparent 0 calc(1lh - 1px),var(--grid) calc(1lh - 1px) 1lh);
     border-left:2px solid color-mix(in srgb,var(--accent) 35%,transparent);padding-left:34px}
-  #editor [data-desc]{color:#6f6563;font-style:italic;opacity:.95}
+  /* 描写行：只保留斜体区分；颜色跟正文默认色走（所以颜色勾能正确显示黑/白） */
+  #editor [data-desc]{font-style:italic;opacity:.95}
+  /* 默认色（跟随深色/浅色主题）：包住的那段文字始终等于当前主题的正文默认色 */
+  #editor .fg-default{color:var(--editor-text)!important}
   #ph{position:absolute;left:28px;top:10px;color:var(--muted);pointer-events:none;font-size:var(--fs);
     line-height:var(--lh)}
   #ph[hidden]{display:none}
@@ -184,12 +213,91 @@
     border-left:1px solid var(--line);max-width:420px;line-height:1.5}
   #scriptHint[hidden]{display:none}
   #ctxMenu{position:fixed;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:8px;
-    box-shadow:0 8px 30px rgba(0,0,0,.2);padding:4px;min-width:160px;display:none}
+    box-shadow:0 8px 30px rgba(0,0,0,.2);padding:4px;min-width:160px;max-width:min(380px,calc(100vw - 16px));
+    max-height:calc(100vh - 16px);overflow-y:auto;display:none}
   #ctxMenu .sep{height:1px;background:var(--line);margin:4px 6px}
   #ctxMenu button{display:block;width:100%;text-align:left;border:none;background:none;color:var(--text);
-    font-family:inherit;font-size:13px;padding:6px 10px;border-radius:6px;cursor:pointer}
+    font-family:inherit;font-size:13px;padding:6px 10px;border-radius:6px;cursor:pointer;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #ctxMenu button:hover{background:var(--accent-soft);color:var(--accent)}
   #setHint{font-size:12px;color:var(--accent);min-height:16px;margin-top:8px}
+  /* 左侧页签 / 大纲速查 */
+  #sideTabs{display:flex;gap:6px;padding:8px 10px 0}
+  #sideTabs button{flex:1;border:1px solid var(--line);background:var(--panel2);color:var(--muted);
+    border-radius:8px;padding:5px 6px;font-family:inherit;font-size:12px;cursor:pointer}
+  #sideTabs button.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+  #sidebar.outline #search,#sidebar.outline #treeTools,#sidebar.outline #tagFilterBar{display:none}
+  .side-head{font-size:11px;color:var(--muted);letter-spacing:.05em;margin:12px 4px 6px;font-weight:700}
+  .side-note{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:6px;cursor:pointer;
+    font-size:12px;color:var(--text);overflow:hidden;white-space:nowrap}
+  .side-note:hover{background:var(--panel2)}
+  .side-note.active{background:var(--accent-soft);color:var(--accent)}
+  .side-note .dots{color:var(--muted);font-size:11px;white-space:nowrap;margin-left:auto}
+  .side-card{border:1px solid var(--line);border-radius:8px;padding:7px 8px;margin:4px 2px;
+    background:var(--panel2);cursor:pointer}
+  .side-card:hover{border-color:var(--accent)}
+  .side-card .t{font-size:12px;font-weight:700;color:var(--text)}
+  .side-card .d{font-size:11px;color:var(--muted);margin-top:3px;max-height:34px;overflow:hidden;line-height:1.5;white-space:pre-wrap}
+  .side-card .imgs{display:flex;gap:4px;margin-top:5px}
+  .side-card .imgs img{width:46px;height:46px;object-fit:cover;border-radius:5px;border:1px solid var(--line)}
+  #scriptStats{font-size:11px;color:var(--muted);max-width:52vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #scriptStats[hidden]{display:none}
+  /* 正文查找替换 */
+  #findBar{position:absolute;top:6px;right:26px;z-index:70;display:flex;align-items:center;gap:6px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 8px;
+    box-shadow:0 6px 22px rgba(0,0,0,.18);flex-wrap:wrap;max-width:calc(100% - 40px)}
+  #findBar[hidden]{display:none}
+  #findBar input{width:130px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+    border-radius:6px;padding:4px 7px;font-family:inherit;font-size:12px;outline:none}
+  #findBar input:focus{border-color:var(--accent)}
+  #findBar .find-case{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);white-space:nowrap}
+  #findBar input[type=checkbox]{width:auto;padding:0;margin:0;accent-color:var(--accent)}
+  #findBar #findCount{font-size:11px;color:var(--muted);min-width:34px;text-align:center}
+  #findBar button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:6px;
+    padding:3px 7px;font-size:12px;cursor:pointer;font-family:inherit}
+  #findBar button:hover{border-color:var(--accent);color:var(--accent)}
+  ::highlight(find-hit){background:#fde68a;color:#2a2622}
+  ::highlight(find-active){background:#f59e0b;color:#1a1208}
+  /* 剧本角色名候选 */
+  #rolePopup{position:fixed;z-index:260;background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    box-shadow:0 8px 30px rgba(0,0,0,.2);padding:4px;min-width:120px;max-height:220px;overflow:auto;display:none}
+  #rolePopup .item{display:block;width:100%;text-align:left;border:none;background:none;color:var(--text);
+    font-family:inherit;font-size:13px;padding:6px 10px;border-radius:6px;cursor:pointer}
+  #rolePopup .item.on,#rolePopup .item:hover{background:var(--accent-soft);color:var(--accent)}
+  /* 专注模式 */
+  body.focus-mode #topbar, body.focus-mode #formatbar, body.focus-mode #sidebar,
+  body.focus-mode #tabs, body.focus-mode #metaBar, body.focus-mode #statusbar{display:none}
+  body.focus-mode #main{grid-template-columns:1fr}
+  body.focus-mode #editorWrap{background:var(--panel)}
+  #focusExit{position:fixed;right:18px;top:14px;z-index:300;border:1px solid var(--line);background:var(--panel);
+    color:var(--accent);border-radius:8px;padding:7px 12px;font-family:inherit;font-size:12px;cursor:pointer;
+    box-shadow:0 6px 20px rgba(0,0,0,.18);display:none}
+  body.focus-mode #focusExit{display:block}
+  /* 设定卡 */
+  .cards-card{width:min(980px,94vw);max-height:88vh;overflow:auto}
+  .cards-bar{display:flex;gap:8px;align-items:center;margin:2px 0 12px}
+  .cards-bar .btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+  .cards-layout{display:flex;gap:16px;min-height:340px}
+  .cards-list{width:200px;flex:none;border-right:1px solid var(--line);padding-right:10px;display:flex;
+    flex-direction:column;gap:6px;max-height:60vh;overflow:auto}
+  .cards-list .item{text-align:left;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+    border-radius:8px;padding:7px 10px;font-family:inherit;font-size:13px;cursor:pointer;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .cards-list .item.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .cards-main{flex:1;min-width:0}
+  .cards-main label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  .cards-main input[type=text], .cards-main textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);
+    background:var(--panel2);color:var(--text);border-radius:8px;padding:8px 10px;font-family:inherit;
+    font-size:13px;outline:none;resize:vertical}
+  .cards-main textarea{min-height:150px;line-height:1.7}
+  .card-newrole{display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .card-newrole input[type=text]{flex:1;min-width:140px;width:auto}
+  .card-imgs{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
+  .card-img{width:200px;flex:none}
+  .card-img .box{height:150px;border:1px dashed var(--line);border-radius:8px;background:var(--panel2);
+    display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;overflow:hidden}
+  .card-img .box img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+  .card-img .bar{display:flex;gap:6px;margin-top:6px}
   @media (max-width:820px){ #main{grid-template-columns:1fr} #sidebar{display:none} }
 </style>
 </head>
@@ -206,11 +314,14 @@
   <button id="btnImport" class="btn">恢复备份</button>
   <button id="btnFolder" class="btn">打开文件夹</button>
   <button id="btnExport" class="btn">导出…</button>
+  <button id="btnImage" class="btn">插入图片</button>
+  <button id="btnCards" class="btn">设定卡</button>
   <button id="btnSettings" class="btn">设置</button>
   <span class="spacer"></span>
   <button id="btnFontDown" class="btn icon" title="字号变小">A−</button>
   <button id="btnFontUp" class="btn icon" title="字号变大">A＋</button>
   <button id="btnDark" class="btn icon" title="切换深色模式">深色</button>
+  <button id="btnFocus" class="btn icon" title="专注模式（Esc 退出）">专注</button>
 </header>
 <div id="formatbar">
   <span>字体</span>
@@ -249,7 +360,11 @@
 </div>
 <div id="main">
   <aside id="sidebar">
-    <input id="search" placeholder="搜索文件…（Ctrl+F）">
+    <div id="sideTabs">
+      <button id="sideTabFiles" class="on">文件</button>
+      <button id="sideTabOutline">大纲 / 速查</button>
+    </div>
+    <input id="search" placeholder="搜索文件…">
     <div id="treeTools">
       <button id="btnExpandAll">全部展开</button>
       <button id="btnCollapseAll">全部折叠</button>
@@ -261,10 +376,22 @@
     <div id="tabs"></div>
     <div id="empty">点左上角「＋ 新建文件」开始写</div>
     <div id="editorPane" hidden>
-      <input id="title" placeholder="文件名…（比如：第一章 · 初见）">
+      <div id="titleRow"><span id="titleTag">标题</span><input id="title" placeholder="标题…"></div>
       <div id="editorBox">
         <div id="editor" contenteditable="true" spellcheck="false"></div>
         <div id="ph">从这里开始写… 先选中文字再点上面的颜色/荧光笔</div>
+        <div id="imgBox"><div id="imgHandle" title="拖动缩放图片；双击图片恢复自适应大小"></div></div>
+        <div id="findBar" hidden>
+          <input id="findText" placeholder="查找…">
+          <input id="replaceText" placeholder="替换为…">
+          <label class="find-case"><input type="checkbox" id="findCase">区分大小写</label>
+          <span id="findCount"></span>
+          <button id="findPrev" title="上一个（Shift+Enter）">↑</button>
+          <button id="findNext" title="下一个（Enter）">↓</button>
+          <button id="findReplaceOne" class="btn small" title="替换当前">替换</button>
+          <button id="findReplaceAll" class="btn small" title="全部替换">全部替换</button>
+          <button id="findClose" title="关闭（Esc）">×</button>
+        </div>
       </div>
       <div id="metaBar">
         <span>标签</span>
@@ -283,6 +410,7 @@
   <span id="saveState">就绪</span>
   <span id="backupState"></span>
   <span class="spacer"></span>
+  <span id="scriptStats"></span>
   <span id="dataPath"></span>
   <span id="statusInfo"></span>
   <span id="jsOk" hidden>no</span>
@@ -348,17 +476,54 @@
       <input id="wallOpacity" type="range" min="0" max="0.9" step="0.05" style="flex:1">
       <span id="wallOpacityVal">0.45</span>
     </div>
+    <h4>剧本格式</h4>
+    <div class="modal-row"><span>台词行尾加（）</span>
+      <input type="checkbox" id="dialogueSuffix" style="margin-left:auto">
+    </div>
+    <p class="tip">勾选后，回车生成或点「插入台词行」时，会在引号后加一对括号写动作/情感，例如 <b>-【角色】：“台词”（微笑）</b>；取消勾选就不加。剧本模式下台词行和描写行都会以「-」开头。</p>
     <h4>角色表（剧本模式用，每行一个，可留空）</h4>
     <textarea id="rolesText" rows="5" spellcheck="false" placeholder="每行一个角色名，可留空（例：鲸鱼娘）"></textarea>
     <div id="rolesCount"></div>
     <div class="bar">
       <button id="rolesSave" class="btn small">保存角色表</button>
-      <button id="settingsClose" class="btn small">关闭</button>
     </div>
     <div id="setHint"></div>
+    <h4>图片管理</h4>
+    <div class="modal-row"><span>正文 / 设定卡图片</span><button id="setOpenImages" class="btn small" style="margin-left:auto">打开图片文件夹</button></div>
+    <div class="modal-row"><span>未使用图片</span><span id="orphanInfo">尚未扫描</span></div>
     <div class="bar" style="margin-top:6px">
-      <button id="settingsOnboard" class="btn small">再看一遍新手引导</button>
+      <button id="btnOrphanScan" class="btn small">扫描未使用图片</button>
+      <button id="btnOrphanClean" class="btn small danger" hidden>移到回收文件夹</button>
     </div>
+    <p class="tip">只移动没有被正文、历史版本、角色卡、世界观卡引用的图片；不会自动删除，会先放进数据目录的「图片-回收」文件夹。</p>
+    <h4>关于</h4>
+    <div class="modal-row"><span>版本</span><span id="aboutVersion">-</span></div>
+    <div class="modal-row"><span>开发者</span><span>橙某之乎者也</span></div>
+    <div class="modal-row"><span>英文名</span><span>WriteDesk</span></div>
+    <div class="modal-row"><span>模型</span><span>DeepSeek（deepseek-flash）</span></div>
+    <div class="modal-row"><span>开发平台</span><span>DeepSeek Harness</span></div>
+    <div class="modal-row"><span>作者</span>
+      <input id="authorName" placeholder="作者名字"
+        style="margin-left:auto;min-width:190px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:6px;padding:5px 8px;font-family:inherit;font-size:13px;outline:none">
+    </div>
+    <p class="tip">写作台 · 免费同人写作 / 视觉小说剧本软件。作者名字保存在本机设置里，会显示在这里。</p>
+    <div class="bar" style="margin-top:10px;justify-content:space-between">
+      <button id="settingsOnboard" class="btn small">再看一遍新手引导</button>
+      <button id="settingsClose" class="btn primary small">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="cardsModal" hidden>
+  <div class="modal-card cards-card">
+    <h3>设定卡</h3>
+    <div class="cards-bar">
+      <button id="cardsTabChars" class="btn small">角色设定</button>
+      <button id="cardsTabWorld" class="btn small">世界观背景</button>
+      <span class="spacer"></span>
+      <button id="cardsClose" class="btn small">关闭</button>
+    </div>
+    <div id="cardsBody"></div>
   </div>
 </div>
 
@@ -366,21 +531,23 @@
   <div class="modal-card ob-card">
     <div class="ob-head">
       <span id="obHeadTitle">新手引导</span>
-      <span id="obStep">1 / 3</span>
+      <span id="obStep">1 / 5</span>
     </div>
+    <div class="ob-dots" id="obDots"><i class="on"></i><i></i><i></i><i></i><i></i></div>
     <div class="ob-page" id="obP1">
-      <h3>欢迎使用写作台</h3>
-      <p class="tip">左边是文件树，右边写正文。每敲一个字都会自动保存，另外每 10 分钟自动备份，还能翻历史版本。</p>
-      <ul class="tip ob-list">
-        <li>顶部：字体、文字颜色、荧光笔、斜体、下划线</li>
-        <li>剧本模式：回车按设定生成「台词行」或「描写行」</li>
-        <li>导出：TXT / Markdown / HTML / Word / PDF / Excel / PPT</li>
-        <li>快捷键：Ctrl+N 新建 · Ctrl+E 导出 · Ctrl+F 搜索 · Ctrl+S 备份</li>
-      </ul>
+      <h3>欢迎使用写作台 <span class="ob-en">WriteDesk 3.0</span></h3>
+      <p class="tip">给写小说、写视觉小说剧本的人用的桌面写作软件。稿子只保存在你自己的电脑里，不会上传。</p>
+      <div class="ob-features">
+        <div class="ob-feature"><b>自动保存 + 备份</b><span>每敲一个字都会保存，每 10 分钟自动备份，还能翻历史版本。</span></div>
+        <div class="ob-feature"><b>小说 / 剧本双模式</b><span>普通模式正常写小说；打开剧本模式，回车自动生成台词/描写行。</span></div>
+        <div class="ob-feature"><b>设定卡</b><span>角色设定图、三视图、世界观背景，写的时候随时查。</span></div>
+        <div class="ob-feature"><b>多格式导出</b><span>TXT / Markdown / HTML / Word / PDF / Excel / PPT 都能导出。</span></div>
+      </div>
+      <p class="tip">下面用 4 步、大约 30 秒，把保存位置、语言和常用功能过一遍。</p>
     </div>
     <div class="ob-page" id="obP2" hidden>
       <h3>第 1 步：稿子存在哪里</h3>
-      <p class="tip">建议放在空间大的盘。换位置时会把现有稿子一起搬过去，不会丢。</p>
+      <p class="tip">建议放在空间大的盘。以后换位置时，会把现有稿子一起搬过去，不会丢。</p>
       <div class="ob-path" id="obPath">-</div>
       <div class="bar">
         <button id="obUseDir" class="btn small">就用这个位置</button>
@@ -400,6 +567,30 @@
       <p class="tip">角色表：每行一个角色名，剧本模式用；可以留空，以后在「设置」里再加。</p>
       <textarea id="obRoles" rows="4" spellcheck="false" placeholder="例：鲸鱼娘&#10;小C"></textarea>
     </div>
+    <div class="ob-page" id="obP4" hidden>
+      <h3>第 3 步：剧本模式和设定卡</h3>
+      <p class="tip">打开顶部「剧本模式」后，回车会按下面的格式自动生成下一行：</p>
+      <div class="ob-code">-【鲸鱼娘】：“你终于来了。”（微笑）</div>
+      <ul class="tip ob-list">
+        <li>打「【」会自动弹出角色名候选，↑↓ 选择、回车插入；引号、括号也会自动配对。</li>
+        <li>顶部「设定卡」：角色设定图 / 三视图 / 世界观背景，写的时候随时查。</li>
+        <li>状态栏会实时统计台词、旁白和每个角色说了多少字。</li>
+        <li>普通模式就正常写小说，不受剧本格式影响。</li>
+      </ul>
+    </div>
+    <div class="ob-page" id="obP5" hidden>
+      <h3>第 4 步：开始写吧</h3>
+      <ul class="tip ob-list">
+        <li><b>Ctrl+F</b> 正文查找替换 · <b>Ctrl+E</b> 导出 · <b>Ctrl+S</b> 立即备份</li>
+        <li>顶部「专注」只留正文；左侧「大纲 / 速查」随时看章节和设定。</li>
+        <li>右下角「历史版本」可以恢复以前的稿子；「导出」支持 7 种格式。</li>
+      </ul>
+      <p class="tip">准备好了就点「新建第一个文件」，或者直接「完成」先逛逛。</p>
+      <div class="ob-start">
+        <button id="obStart" class="btn primary">新建第一个文件</button>
+        <span class="tip">也可以跳过，之后随时点左上角「＋ 新建文件」。</span>
+      </div>
+    </div>
     <div class="bar ob-foot">
       <button id="obSkip" class="btn small">跳过</button>
       <span class="spacer"></span>
@@ -410,6 +601,8 @@
 </div>
 
 <div id="ctxMenu"></div>
+<div id="rolePopup" hidden></div>
+<button id="focusExit" hidden>退出专注（Esc）</button>
 
 <script src="i18n.js"></script>
 <script>
@@ -421,12 +614,13 @@
   function t(key, vars) { return I18N.t(key, vars); }
   var S = null, dataDir = '', appVersion = '';
   var renderedId = null, searchTerm = '';
+  var lastTreeClickId = null, lastTreeClickAt = 0;
   var saveTimer = null, listTimer = null;
   var lastWallpaper = null, wallOpacity = 0.45;
 
   var FONTS = [
     { v: '', name: '系统默认', family: 'Microsoft YaHei', css: '' },
-    { v: 'YouYuan', name: '幼圆（二次元）', family: '幼圆', css: '"幼圆","YouYuan",sans-serif' },
+    { v: 'YouYuan', name: '幼圆', family: '幼圆', css: '"幼圆","YouYuan",sans-serif' },
     { v: 'FZShuTi', name: '方正舒体', family: '方正舒体', css: '"方正舒体","FZShuTi",sans-serif' },
     { v: 'STHupo', name: '华文琥珀', family: '华文琥珀', css: '"华文琥珀","STHupo",sans-serif' },
     { v: 'STCaiyun', name: '华文彩云', family: '华文彩云', css: '"华文彩云","STCaiyun",sans-serif' },
@@ -435,7 +629,7 @@
     { v: 'LiSu', name: '隶书', family: '隶书', css: '"隶书","LiSu",serif' },
     { v: 'FangSong', name: '仿宋', family: '仿宋', css: '"仿宋","FangSong",serif' }
   ];
-  var TEXT_COLORS = ['#2a2622', '#a83232', '#c2410c', '#eab308', '#15803d', '#0e7490', '#1d4ed8', '#7c3aed', '#9d174d'];
+  var TEXT_COLORS = ['#000000', '#ffffff', '#a83232', '#c2410c', '#eab308', '#15803d', '#0e7490', '#1d4ed8', '#7c3aed', '#9d174d'];
   var HL_COLORS = ['#fde68a', '#fecaca', '#bfdbfe', '#bbf7d0', '#e9d5ff', '#fed7aa'];
 
   function $(id) { return document.getElementById(id); }
@@ -444,6 +638,150 @@
   function fmt(ts) { var d = new Date(ts); return p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()); }
   function fmtFull(ts) { var d = new Date(ts); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()); }
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  /* ---------------- 图片工具（正文插图 / 设定卡图片） ---------------- */
+  function pickImageFile(cb) {
+    var inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.onchange = function () {
+      var f = inp.files && inp.files[0];
+      if (!f) return;
+      readImageFile(f, cb);
+    };
+    inp.click();
+  }
+  function readImageFile(file, cb) {
+    var fr = new FileReader();
+    fr.onload = function () { shrinkImage(String(fr.result || ''), 1400, cb); };
+    fr.onerror = function () { cb(''); };
+    fr.readAsDataURL(file);
+  }
+  // 大图缩到最长边 maxDim 再转 JPEG，避免笔记数据被图片撑爆；小图原样保留（透明/清晰度）
+  function shrinkImage(dataUrl, maxDim, cb) {
+    if (!dataUrl) { cb(''); return; }
+    var img = new Image();
+    img.onload = function () {
+      try {
+        var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        if (!w || !h) { cb(dataUrl); return; }
+        var scale = Math.min(1, maxDim / Math.max(w, h));
+        if (scale >= 1 && dataUrl.length < 900000) { cb(dataUrl); return; }
+        var nw = Math.max(1, Math.round(w * scale)), nh = Math.max(1, Math.round(h * scale));
+        var cv = document.createElement('canvas');
+        cv.width = nw; cv.height = nh;
+        var ctx = cv.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, nw, nh);
+        ctx.drawImage(img, 0, 0, nw, nh);
+        var out = '';
+        try { out = cv.toDataURL('image/jpeg', 0.86); } catch (e) { out = dataUrl; }
+        cb(out || dataUrl);
+      } catch (e) { cb(dataUrl); }
+    };
+    img.onerror = function () { cb(dataUrl); };
+    img.src = dataUrl;
+  }
+  function persistImage(dataUrl, cb) {
+    if (!dataUrl) { cb(null); return; }
+    if (api && api.saveImage) {
+      api.saveImage(dataUrl).then(function (r) {
+        if (r && r.ok && r.url) cb({ url: r.url, rel: r.rel || '' });
+        else cb({ url: dataUrl, rel: '' });
+      }).catch(function () { cb({ url: dataUrl, rel: '' }); });
+    } else {
+      cb({ url: dataUrl, rel: '' });
+    }
+  }
+  function insertImageData(dataUrl) {
+    persistImage(dataUrl, function (saved) {
+      if (!saved) return;
+      insertImageBlock(saved.url, saved.rel);
+    });
+  }
+  function insertImageBlock(dataUrl, rel) {
+    if (!dataUrl) return;
+    var ed = $('editor');
+    if (!ed) return;
+    ed.focus();
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) {
+      var r0 = document.createRange(); r0.selectNodeContents(ed); r0.collapse(false);
+      sel.removeAllRanges(); sel.addRange(r0);
+    }
+    var range = sel.getRangeAt(0);
+    var img = document.createElement('img');
+    img.src = dataUrl;
+    if (rel) img.setAttribute('data-img', rel);
+    img.alt = '图片';
+    img.draggable = false;
+    var block = document.createElement('div');
+    block.className = 'img-block';
+    block.appendChild(img);
+    try { range.deleteContents(); range.insertNode(block); } catch (e) { ed.appendChild(block); }
+    var nr = document.createRange();
+    nr.setStartAfter(block); nr.collapse(true);
+    sel.removeAllRanges(); sel.addRange(nr);
+    syncFromEditor();
+    setSaveState(t('saving'));
+    selectImage(img);
+  }
+  /* ---------------- 正文图片缩放 ---------------- */
+  var imgSel = null;
+  function positionImageBox() {
+    var box = $('imgBox');
+    if (!box) return;
+    if (!imgSel || !imgSel.isConnected || !$('editor').contains(imgSel)) { box.classList.remove('on'); imgSel = null; return; }
+    var r = imgSel.getBoundingClientRect();
+    var br = $('editorBox').getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) { box.classList.remove('on'); return; }
+    box.style.left = Math.round(r.left - br.left) + 'px';
+    box.style.top = Math.round(r.top - br.top) + 'px';
+    box.style.width = Math.round(r.width) + 'px';
+    box.style.height = Math.round(r.height) + 'px';
+    box.classList.add('on');
+  }
+  function selectImage(img) {
+    if (!img || img.tagName !== 'IMG') return;
+    imgSel = img;
+    setTimeout(positionImageBox, 0);
+  }
+  function hideImageBox() {
+    var box = $('imgBox');
+    if (box) box.classList.remove('on');
+    imgSel = null;
+  }
+  function resetImageSize(img) {
+    if (!img) return;
+    img.style.width = '';
+    img.style.height = '';
+    setTimeout(function () { positionImageBox(); }, 0);
+    syncFromEditor();
+    queueSave();
+  }
+  function startImageDrag(ev) {
+    if (!imgSel) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    var startX = ev.clientX;
+    var startW = imgSel.getBoundingClientRect().width;
+    var editorEl = $('editor');
+    var maxW = Math.max(80, editorEl.clientWidth - 60);
+    function move(e) {
+      if (!imgSel) return;
+      var w = Math.max(40, Math.min(maxW, startW + (e.clientX - startX)));
+      imgSel.style.width = Math.round(w) + 'px';
+      imgSel.style.height = 'auto';
+      positionImageBox();
+    }
+    function up() {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (imgSel) { syncFromEditor(); queueSave(); positionImageBox(); }
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
   function setSaveState(t, warn) { var s = $('saveState'); s.textContent = t; s.className = warn ? 'warn' : ''; }
   function setBackupState(t) { $('backupState').textContent = t || ''; }
   var hintTimer = null;
@@ -459,7 +797,8 @@
   function defaults() {
     return {
       version: 3, notes: [], openTabs: [], activeId: null, expanded: {},
-      settings: { dark: false, fontSize: 20, fontDefault: '', lang: 'zh', enterMode: 'dialogue', roles: [], currentRole: '', rolesTouched: false, onboarded: false },
+      cards: { characters: {}, worlds: [] },
+      settings: { dark: false, fontSize: 20, fontDefault: '', lang: 'zh', enterMode: 'dialogue', roles: [], currentRole: '', rolesTouched: false, onboarded: false, dialogueSuffix: true, authorName: '浪-橙光地雷' },
       tagFilter: '',
       wallpaper: null
     };
@@ -509,6 +848,7 @@
     out.settings = Object.assign(out.settings, d.settings || {});
     if (['zh', 'ja', 'en'].indexOf(out.settings.lang) < 0) out.settings.lang = 'zh';
     if (out.settings.enterMode !== 'desc') out.settings.enterMode = 'dialogue';
+    if (typeof out.settings.dialogueSuffix !== 'boolean') out.settings.dialogueSuffix = true;
     // 角色表：默认空白；空白行（分隔/无名行）原样保留
     if (!Array.isArray(out.settings.roles)) out.settings.roles = [];
     out.settings.roles = out.settings.roles.map(function (r) { return String(r == null ? '' : r).trim(); });
@@ -517,6 +857,36 @@
     if (!out.settings.rolesTouched) out.settings.roles = [];
     if (typeof out.settings.currentRole !== 'string') out.settings.currentRole = '';
     if (out.settings.roles.indexOf(out.settings.currentRole) < 0) out.settings.currentRole = out.settings.roles[0] || '';
+    out.settings.authorName = (typeof out.settings.authorName === 'string' && out.settings.authorName.trim())
+      ? out.settings.authorName.trim() : '浪-橙光地雷';
+    // 设定卡数据（角色 / 世界观）
+    var rawCards = (d.cards && typeof d.cards === 'object') ? d.cards : {};
+    var chars = (rawCards.characters && typeof rawCards.characters === 'object') ? rawCards.characters : {};
+    var cleanChars = {};
+    Object.keys(chars).forEach(function (k) {
+      var c = chars[k] || {};
+      cleanChars[k] = {
+        name: String(c.name || k),
+        profile: typeof c.profile === 'string' ? c.profile : '',
+        designImage: typeof c.designImage === 'string' ? c.designImage : '',
+        threeViewImage: typeof c.threeViewImage === 'string' ? c.threeViewImage : ''
+      };
+    });
+    var worlds = Array.isArray(rawCards.worlds) ? rawCards.worlds : [];
+    // 角色设定卡以角色表为准：角色表里没有的名字不再保留
+    var roleSet = {};
+    out.settings.roles.forEach(function (r) { if (r) roleSet[r] = true; });
+    Object.keys(cleanChars).forEach(function (k) { if (!roleSet[k]) delete cleanChars[k]; });
+    out.cards = {
+      characters: cleanChars,
+      worlds: worlds.filter(function (w) { return w && typeof w === 'object'; }).map(function (w) {
+        return { id: w.id || uid(), title: typeof w.title === 'string' ? w.title : '', content: typeof w.content === 'string' ? w.content : '', image: typeof w.image === 'string' ? w.image : '' };
+      }).filter(function (w) {
+        // 清掉旧版打开页签时自动生成、从未填过内容的「世界观 N」空卡，保证默认是空的
+        var autoEmpty = !w.content && !w.image && /^世界观\s*\d+$/.test((w.title || '').trim());
+        return !autoEmpty;
+      })
+    };
     out.tagFilter = d.tagFilter || '';
     return out;
   }
@@ -541,7 +911,7 @@
   function serialize() {
     return {
       app: '写作台', version: 3, notes: S.notes, openTabs: S.openTabs, activeId: S.activeId,
-      expanded: S.expanded, settings: S.settings, tagFilter: S.tagFilter, savedAt: new Date().toISOString()
+      expanded: S.expanded, cards: S.cards, settings: S.settings, tagFilter: S.tagFilter, savedAt: new Date().toISOString()
     };
   }
   function queueSave() { clearTimeout(saveTimer); saveTimer = setTimeout(doSave, AUTOSAVE_MS); }
@@ -573,7 +943,16 @@
       t.appendChild(name); t.appendChild(x); bar.appendChild(t);
     });
     var plus = document.createElement('button'); plus.className = 'tab-plus'; plus.textContent = '＋';
-    plus.title = '新建文件'; plus.onclick = function () { newNote(null); }; bar.appendChild(plus);
+    plus.title = '新建文件';
+    plus.onclick = function (ev) { if (ev && ev.detail > 1) return; newNote(null); };
+    bar.appendChild(plus);
+    // 标签很多时自动把当前标签滚进可视区，别被顶出去
+    var act = bar.querySelector('.tab.active');
+    if (act) {
+      var left = act.offsetLeft, right = left + act.offsetWidth;
+      if (left < bar.scrollLeft) bar.scrollLeft = left - 8;
+      else if (right > bar.scrollLeft + bar.clientWidth) bar.scrollLeft = right - bar.clientWidth + 8;
+    }
   }
 
   function treeRow(n) {
@@ -585,7 +964,11 @@
     var arrow = document.createElement('span');
     arrow.className = 'arrow' + (kids ? '' : ' blank');
     arrow.textContent = kids ? (S.expanded[n.id] ? '▾' : '▸') : '';
-    if (kids) arrow.onclick = function (ev) { ev.stopPropagation(); S.expanded[n.id] = !S.expanded[n.id]; renderSidebar(); queueSave(); };
+    arrow.title = kids ? (S.expanded[n.id] ? '收起子文件' : '展开子文件') : '';
+    if (kids) {
+      arrow.onclick = function (ev) { ev.stopPropagation(); S.expanded[n.id] = !S.expanded[n.id]; renderSidebar(); queueSave(); };
+      arrow.ondblclick = function (ev) { ev.stopPropagation(); };
+    }
     var icon = document.createElement('span');
     icon.className = 'ti ' + (kids ? 'parent' : 'child');
     var title = document.createElement('span'); title.className = 'tree-title';
@@ -597,9 +980,22 @@
       : t('charsOnly', { chars: charCount(n) });
     var add = document.createElement('button'); add.className = 'tree-add'; add.textContent = '＋';
     add.title = t('ctxNewChild');
-    add.onclick = function (ev) { ev.stopPropagation(); newNote(n.id); };
+    add.onclick = function (ev) { ev.stopPropagation(); if (ev.detail > 1) return; newNote(n.id); };
+    add.ondblclick = function (ev) { ev.stopPropagation(); };
     row.appendChild(arrow); row.appendChild(icon); row.appendChild(title); row.appendChild(count); row.appendChild(add);
-    row.onclick = function () { activate(n.id); };
+    // 单击只打开文件；双击（同一个文件 450ms 内第二次点）展开/收起子文件。
+    // 这里不用浏览器原生 dblclick：第一次点击会重渲染文件树，原生 dblclick 有时会丢。
+    row.onclick = function () {
+      var now = Date.now();
+      if (kids && lastTreeClickId === n.id && now - lastTreeClickAt < 600) {
+        lastTreeClickId = null; lastTreeClickAt = 0;
+        S.expanded[n.id] = !S.expanded[n.id];
+        renderSidebar(); queueSave();
+        return;
+      }
+      lastTreeClickId = n.id; lastTreeClickAt = now;
+      activate(n.id);
+    };
     return row;
   }
 
@@ -670,14 +1066,365 @@
     m.style.display = 'block';
     var x = ev.clientX, y = ev.clientY;
     var w = m.offsetWidth, h = m.offsetHeight;
-    if (x + w > window.innerWidth - 8) x = window.innerWidth - w - 8;
-    if (y + h > window.innerHeight - 8) y = window.innerHeight - h - 8;
+    // 菜单可能比窗口还高：夹在窗口内，超出的部分内部滚动
+    x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
+    y = Math.max(8, Math.min(y, window.innerHeight - h - 8));
+    m.style.left = x + 'px';
+    m.style.top = y + 'px';
+  }
+
+  /* ---------------- 设定卡（角色 / 世界观） ---------------- */
+  var cardsState = { tab: 'chars', role: '', worldId: null, addingRole: false, newRoleDraft: '' };
+  function ensureCards() {
+    if (!S.cards || typeof S.cards !== 'object') S.cards = { characters: {}, worlds: [] };
+    if (!S.cards.characters || typeof S.cards.characters !== 'object') S.cards.characters = {};
+    if (!Array.isArray(S.cards.worlds)) S.cards.worlds = [];
+  }
+  function nonEmptyRoleNames() {
+    var seen = {}, out = [];
+    (S.settings.roles || []).forEach(function (r) {
+      r = String(r == null ? '' : r).trim();
+      if (r && !seen[r]) { seen[r] = true; out.push(r); }
+    });
+    return out;
+  }
+  function cardRoleNames() { return nonEmptyRoleNames(); }
+  function syncRolesTextarea() {
+    var ta = $('rolesText');
+    if (ta) ta.value = (S.settings.roles || []).join('\n');
+  }
+  // 角色表 ↔ 角色设定卡同步：角色表是名单，设定卡跟着增删
+  function syncCardsToRoles() {
+    ensureCards();
+    var roles = nonEmptyRoleNames();
+    Object.keys(S.cards.characters).forEach(function (k) { if (roles.indexOf(k) < 0) delete S.cards.characters[k]; });
+    roles.forEach(function (r) {
+      if (!S.cards.characters[r]) S.cards.characters[r] = { name: r, profile: '', designImage: '', threeViewImage: '' };
+    });
+    if (roles.indexOf(cardsState.role) < 0) cardsState.role = roles[0] || '';
+  }
+  function addRoleFromCard(name) {
+    name = String(name == null ? '' : name).trim();
+    if (!name) return false;
+    ensureCards();
+    var roles = S.settings.roles || [];
+    if (nonEmptyRoleNames().indexOf(name) < 0) roles.push(name);
+    S.settings.roles = roles;
+    S.settings.rolesTouched = true;
+    if (!S.cards.characters[name]) S.cards.characters[name] = { name: name, profile: '', designImage: '', threeViewImage: '' };
+    cardsState.role = name;
+    cardsState.addingRole = false;
+    cardsState.newRoleDraft = '';
+    if (!S.settings.currentRole) S.settings.currentRole = name;
+    syncRolesTextarea(); renderRoleSel(); updateRolesCount(); queueSave(); renderCards();
+    if (sidebarView === 'outline') renderSidebar();
+    return true;
+  }
+  function cardHasContent(name) {
+    var c = S.cards && S.cards.characters ? S.cards.characters[name] : null;
+    return !!(c && ((c.profile && String(c.profile).trim()) || c.designImage || c.threeViewImage));
+  }
+  function deleteRoleFromCard(name) {    name = String(name == null ? '' : name).trim();
+    if (!name) return;
+    ensureCards();
+    S.settings.roles = (S.settings.roles || []).filter(function (r) { return String(r == null ? '' : r).trim() !== name; });
+    delete S.cards.characters[name];
+    if (S.settings.currentRole === name) S.settings.currentRole = nonEmptyRoleNames()[0] || '';
+    if (cardsState.role === name) cardsState.role = nonEmptyRoleNames()[0] || '';
+    syncRolesTextarea(); renderRoleSel(); updateRolesCount(); queueSave(); renderCards();
+    if (sidebarView === 'outline') renderSidebar();
+  }
+  function newWorldCard() {
+    ensureCards();
+    var w = { id: uid(), title: '', content: '', image: '' };
+    S.cards.worlds.push(w);
+    cardsState.worldId = w.id;
+    queueSave();
+    renderCards();
+  }
+  function charCard(name) {
+    ensureCards();
+    var c = S.cards.characters[name];
+    if (!c || typeof c !== 'object') { c = { name: name, profile: '', designImage: '', threeViewImage: '' }; S.cards.characters[name] = c; }
+    if (typeof c.profile !== 'string') c.profile = '';
+    if (typeof c.designImage !== 'string') c.designImage = '';
+    if (typeof c.threeViewImage !== 'string') c.threeViewImage = '';
+    return c;
+  }
+  function openCards(tab, key) {
+    ensureCards();
+    if (tab === 'world') {
+      cardsState.tab = 'world';
+      if (key) cardsState.worldId = key;
+      if (!cardsState.worldId || !S.cards.worlds.some(function (x) { return x.id === cardsState.worldId; })) {
+        cardsState.worldId = S.cards.worlds[0] ? S.cards.worlds[0].id : null;
+      }
+    } else {
+      cardsState.tab = 'chars';
+      cardsState.addingRole = false;
+      cardsState.newRoleDraft = '';
+      var names = cardRoleNames();
+      if (key && names.indexOf(key) >= 0) cardsState.role = key;
+      else if (names.indexOf(cardsState.role) < 0) cardsState.role = names[0] || '';
+    }
+    renderCards();
+    $('cardsModal').hidden = false;
+  }
+  function closeCards() { $('cardsModal').hidden = true; if (sidebarView === 'outline') renderSidebar(); }
+  function renderCards() {
+    var body = $('cardsBody');
+    if (!body) return;
+    body.innerHTML = '';
+    $('cardsTabChars').classList.toggle('on', cardsState.tab === 'chars');
+    $('cardsTabWorld').classList.toggle('on', cardsState.tab === 'world');
+    if (cardsState.tab === 'chars') renderCharCards(body);
+    else renderWorldCards(body);
+  }
+  function cardEl(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function cardImgBox(labelText, card, field) {
+    var wrap = cardEl('div', 'card-img');
+    var lab = cardEl('div', null, labelText);
+    lab.style.fontSize = '12px';
+    lab.style.color = 'var(--muted)';
+    lab.style.marginBottom = '4px';
+    wrap.appendChild(lab);
+    var box = cardEl('div', 'box');
+    if (card[field]) {
+      var im = document.createElement('img');
+      im.src = card[field];
+      box.appendChild(im);
+    } else {
+      box.textContent = '未选择图片';
+    }
+    wrap.appendChild(box);
+    var bar = cardEl('div', 'bar');
+    var bt = cardEl('button', 'btn small', '选择图片…');
+    bt.type = 'button';
+    bt.onclick = function () {
+      pickImageFile(function (dataUrl) {
+        if (!dataUrl) return;
+        persistImage(dataUrl, function (saved) {
+          if (!saved) return;
+          card[field] = saved.url;
+          if (saved.rel) card[field + 'Rel'] = saved.rel;
+          queueSave();
+          renderCards();
+        });
+      });
+    };
+    bar.appendChild(bt);
+    if (card[field]) {
+      var bc = cardEl('button', 'btn small', '清除');
+      bc.type = 'button';
+      bc.onclick = function () { card[field] = ''; card[field + 'Rel'] = ''; queueSave(); renderCards(); };
+      bar.appendChild(bc);
+    }
+    wrap.appendChild(bar);
+    return wrap;
+  }
+  function renderCharCards(body) {
+    var names = cardRoleNames();
+    var layout = cardEl('div', 'cards-layout');
+    var list = cardEl('div', 'cards-list');
+    names.forEach(function (name) {
+      var b = cardEl('button', 'item' + (name === cardsState.role ? ' on' : ''), name);
+      b.type = 'button';
+      b.onclick = function () { cardsState.role = name; cardsState.addingRole = false; renderCards(); };
+      list.appendChild(b);
+    });
+    var addBtn = cardEl('button', 'item', '＋ 新建角色');
+    addBtn.type = 'button';
+    addBtn.onclick = function () { cardsState.addingRole = true; cardsState.newRoleDraft = ''; renderCards(); };
+    list.appendChild(addBtn);
+    layout.appendChild(list);
+    var main = cardEl('div', 'cards-main');
+    if (cardsState.addingRole) {
+      var form = cardEl('div', 'card-newrole');
+      var inp = cardEl('input');
+      inp.type = 'text';
+      inp.placeholder = '输入新角色名';
+      inp.value = cardsState.newRoleDraft || '';
+      inp.oninput = function () { cardsState.newRoleDraft = inp.value; };
+      var hint = cardEl('span', null, '');
+      hint.style.fontSize = '11px';
+      hint.style.color = 'var(--accent)';
+      hint.style.whiteSpace = 'nowrap';
+      var ok = cardEl('button', 'btn small primary', '创建');
+      ok.type = 'button';
+      var cancel = cardEl('button', 'btn small', '取消');
+      cancel.type = 'button';
+      function createRole() {
+        var v = inp.value.trim();
+        if (!v) { inp.focus(); return; }
+        if (nonEmptyRoleNames().indexOf(v) >= 0) { hint.textContent = '已有同名角色'; inp.focus(); return; }
+        addRoleFromCard(v);
+      }
+      ok.onclick = createRole;
+      cancel.onclick = function () { cardsState.addingRole = false; cardsState.newRoleDraft = ''; renderCards(); };
+      inp.onkeydown = function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); createRole(); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); cancel.click(); }
+      };
+      form.appendChild(inp); form.appendChild(ok); form.appendChild(cancel); form.appendChild(hint);
+      main.appendChild(form);
+      setTimeout(function () { try { inp.focus(); } catch (e) { } }, 0);
+    }
+    if (!names.length) {
+      main.appendChild(cardEl('p', 'tip', '角色表还是空的。可以直接在左边「＋ 新建角色」里加，也可以去设置里填角色表。'));
+      if (!cardsState.addingRole) {
+        var b2 = cardEl('button', 'btn small primary', '＋ 新建角色');
+        b2.type = 'button';
+        b2.onclick = function () { cardsState.addingRole = true; cardsState.newRoleDraft = ''; renderCards(); };
+        main.appendChild(b2);
+      }
+      var b3 = cardEl('button', 'btn small', '去设置角色表');
+      b3.type = 'button';
+      b3.style.marginLeft = '6px';
+      b3.onclick = function () { closeCards(); openSettings(); };
+      main.appendChild(b3);
+    } else {
+      var card = charCard(cardsState.role);
+      var h = cardEl('div', null, '角色：' + cardsState.role);
+      h.style.fontWeight = '700';
+      h.style.marginBottom = '8px';
+      main.appendChild(h);
+      main.appendChild(cardEl('label', null, '人物设定（性格 / 年龄 / 说话习惯 / 关系 / 背景等）'));
+      var ta = cardEl('textarea');
+      ta.value = card.profile || '';
+      ta.oninput = function () { card.profile = ta.value; queueSave(); };
+      main.appendChild(ta);
+      main.appendChild(cardEl('label', null, '图片（设定图 / 三视图）'));
+      var imgs = cardEl('div', 'card-imgs');
+      imgs.appendChild(cardImgBox('设定图', card, 'designImage'));
+      imgs.appendChild(cardImgBox('三视图', card, 'threeViewImage'));
+      main.appendChild(imgs);
+      var del = cardEl('button', 'btn small danger', '删除角色');
+      del.type = 'button';
+      del.style.marginTop = '16px';
+      del.onclick = function () {
+        if (!confirm('删除角色「' + cardsState.role + '」？\n人物设定和设定图也会一起删除，角色表里也会移除。')) return;
+        deleteRoleFromCard(cardsState.role);
+      };
+      main.appendChild(del);
+    }
+    layout.appendChild(main);
+    body.appendChild(layout);
+  }
+  function renderWorldCards(body) {
+    ensureCards();
+    if (!S.cards.worlds.length) {
+      var emptyLayout = cardEl('div', 'cards-layout');
+      var emptyMain = cardEl('div', 'cards-main');
+      emptyMain.appendChild(cardEl('p', 'tip', '还没有世界观背景卡。'));
+      var nb = cardEl('button', 'btn small primary', '＋ 新建世界观');
+      nb.type = 'button';
+      nb.onclick = newWorldCard;
+      emptyMain.appendChild(nb);
+      emptyLayout.appendChild(emptyMain);
+      body.appendChild(emptyLayout);
+      return;
+    }
+    var world = S.cards.worlds.filter(function (x) { return x.id === cardsState.worldId; })[0] || S.cards.worlds[0];
+    cardsState.worldId = world.id;
+    var layout = cardEl('div', 'cards-layout');
+    var list = cardEl('div', 'cards-list');
+    S.cards.worlds.forEach(function (w) {
+      var b = cardEl('button', 'item' + (w.id === world.id ? ' on' : ''), w.title || '未命名世界观');
+      b.type = 'button';
+      b.onclick = function () { cardsState.worldId = w.id; renderCards(); };
+      list.appendChild(b);
+    });
+    var add = cardEl('button', 'btn small', '＋ 新建世界观');
+    add.type = 'button';
+    add.onclick = newWorldCard;
+    list.appendChild(add);
+    layout.appendChild(list);
+    var main = cardEl('div', 'cards-main');
+    main.appendChild(cardEl('label', null, '名称'));
+    var inp = cardEl('input');
+    inp.type = 'text';
+    inp.value = world.title || '';
+    inp.oninput = function () { world.title = inp.value; queueSave(); };
+    main.appendChild(inp);
+    main.appendChild(cardEl('label', null, '世界观 / 背景设定'));
+    var ta = cardEl('textarea');
+    ta.value = world.content || '';
+    ta.oninput = function () { world.content = ta.value; queueSave(); };
+    main.appendChild(ta);
+    main.appendChild(cardEl('label', null, '背景图（可选）'));
+    var imgWrap = cardEl('div', 'card-imgs');
+    imgWrap.appendChild(cardImgBox('背景图', world, 'image'));
+    main.appendChild(imgWrap);
+    var del = cardEl('button', 'btn small danger', '删除这张世界观');
+    del.type = 'button';
+    del.style.marginTop = '16px';
+    del.onclick = function () {
+      if (!confirm('删除「' + (world.title || '未命名世界观') + '」？')) return;
+      S.cards.worlds = S.cards.worlds.filter(function (x) { return x.id !== world.id; });
+      cardsState.worldId = S.cards.worlds[0] ? S.cards.worlds[0].id : null;
+      queueSave();
+      renderCards();
+      if (sidebarView === 'outline') renderSidebar();
+    };
+    main.appendChild(del);
+    layout.appendChild(main);
+    body.appendChild(layout);
+  }
+  function showCardMenu(ev, mode) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    var m = $('ctxMenu');
+    m.innerHTML = '';
+    function item(label, fn) {
+      var b = document.createElement('button');
+      b.textContent = label;
+      b.onclick = function (e) { e.stopPropagation(); hideCtx(); fn(); };
+      m.appendChild(b);
+    }
+    function sep() { var d = document.createElement('div'); d.className = 'sep'; m.appendChild(d); }
+    var roles = cardRoleNames();
+    if (mode === 'role') {
+      item('角色设定卡…', function () { openCards('chars'); });
+      sep();
+      roles.forEach(function (r) { item('· ' + r, function () { openCards('chars', r); }); });
+      if (!roles.length) item('角色表为空（点这里去设置）', function () { openSettings(); });
+    } else {
+      item('角色设定卡…', function () { openCards('chars'); });
+      roles.forEach(function (r) { item('　' + r, function () { openCards('chars', r); }); });
+      sep();
+      item('世界观背景卡…', function () { openCards('world'); });
+      sep();
+      item('插入图片…', function () { pickImageFile(insertImageData); });
+    }
+    m.style.display = 'block';
+    var x = ev.clientX, y = ev.clientY;
+    var w = m.offsetWidth, h = m.offsetHeight;
+    // 菜单可能比窗口还高：夹在窗口内，超出的部分内部滚动
+    x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
+    y = Math.max(8, Math.min(y, window.innerHeight - h - 8));
     m.style.left = x + 'px';
     m.style.top = y + 'px';
   }
 
   function renderSidebar() {
     var box = $('tree'); box.innerHTML = '';
+    var sb = $('sidebar');
+    if (sb) sb.classList.toggle('outline', sidebarView === 'outline');
+    if ($('sideTabFiles')) $('sideTabFiles').classList.toggle('on', sidebarView === 'files');
+    if ($('sideTabOutline')) $('sideTabOutline').classList.toggle('on', sidebarView === 'outline');
+    if (sidebarView === 'outline') { renderSidebarOutline(box); return; }
+    if (!S.notes.length) {
+      var em = document.createElement('div');
+      em.className = 'tree-empty';
+      em.textContent = '还没有文件，点左上角「＋ 新建文件」开始写';
+      box.appendChild(em);
+      return;
+    }
     var chips = $('tagFilterBar'); chips.innerHTML = '';
     var allTags = [];
     S.notes.forEach(function (n) { (n.tags || []).forEach(function (t) { if (t && allTags.indexOf(t) < 0) allTags.push(t); }); });
@@ -723,6 +1470,9 @@
   }
 
   function renderEditor() {
+    hideImageBox();
+    if (!$('findBar').hidden) closeFind();
+    hideRolePopup();
     var n = activeNote();
     var pane = $('editorPane'), empty = $('empty');
     if (!n) { pane.hidden = true; empty.hidden = false; renderedId = null; return; }
@@ -731,6 +1481,7 @@
       renderedId = n.id;
       $('title').value = n.title || '';
       $('editor').innerHTML = n.contentHtml || '';
+      Array.prototype.forEach.call($('editor').querySelectorAll('img'), function (im) { im.draggable = false; });
       $('tags').value = (n.tags || []).join(' ');
       togglePlaceholder();
       $('editor').scrollTop = 0;
@@ -740,13 +1491,25 @@
     applyFont();
     $('scriptMode').checked = !!n.script;
     $('enterModeSel').value = S.settings.enterMode === 'desc' ? 'desc' : 'dialogue';
+    updateTitleTag();
     updateScriptHint();
     renderRoleSel();
     renderParentSel();
     updateCount();
     updateStatus();
   }
-  function togglePlaceholder() { $('ph').hidden = !!($('editor').textContent || '').trim(); }
+  function updateTitleTag() {
+    var n = activeNote();
+    var tag = $('titleTag'), ttl = $('title');
+    if (!tag || !ttl) return;
+    var isScript = !!(n && n.script);
+    tag.textContent = isScript ? '章节' : '标题';
+    ttl.placeholder = isScript ? '章节名…（比如：第一章 · 初见）' : '标题…';
+  }
+  function togglePlaceholder() {
+    var ed = $('editor');
+    $('ph').hidden = !!((ed.textContent || '').trim() || ed.querySelector('img'));
+  }
   function applyGrid() {
     var n = activeNote();
     var g = n ? (n.grid || S.settings.gridDefault || 'none') : 'none';
@@ -811,7 +1574,12 @@
     if (S.activeId === id) { S.activeId = S.openTabs.length ? S.openTabs[S.openTabs.length - 1] : null; renderedId = null; }
     renderAll(); queueSave();
   }
+  var lastNewNoteAt = 0;
   function newNote(parentId) {
+    // 防止双击「＋」时连建两个空文件（第一次点击会重绘按钮，第二次点击的 detail 不可靠，所以用时间防抖）
+    var now = Date.now();
+    if (now - lastNewNoteAt < 400) return;
+    lastNewNoteAt = now;
     var n = {
       id: uid(), title: '', parentId: parentId || null, grid: '', font: '', script: false,
       tags: [], contentHtml: '', createdAt: Date.now(), updatedAt: Date.now(), hist: []
@@ -831,6 +1599,7 @@
   function updateStatus() {
     var n = activeNote();
     $('statusInfo').textContent = n ? ('『' + (n.title || '未命名文件') + '』 · ' + charCount(n) + ' 字') : t('noOpen');
+    updateScriptStats();
   }
 
   /* ---------------- 富文本 / 剧本模式 ---------------- */
@@ -855,8 +1624,63 @@
   }
   function applyFormat(cmd, value) {
     $('editor').focus();
+    if (cmd === 'foreColor') clearDefaultColorSpans();
     try { document.execCommand(cmd, false, value); } catch (e) { }
     syncFromEditor();
+  }
+  // 把选区里「默认色」的壳去掉（要重新上色时用，否则 class 上的 !important 会盖住新颜色）
+  function clearDefaultColorSpans() {
+    var ed = $('editor');
+    var sel = window.getSelection();
+    if (!ed || !sel || !sel.rangeCount) return;
+    var r = sel.getRangeAt(0);
+    var list = [].slice.call(ed.querySelectorAll('.fg-default'));
+    list.forEach(function (sp) {
+      if (!r.intersectsNode(sp)) return;
+      var p = sp.parentNode;
+      if (!p) return;
+      while (sp.firstChild) p.insertBefore(sp.firstChild, sp);
+      p.removeChild(sp);
+      try { p.normalize(); } catch (e) { }
+    });
+  }
+  // 点「默认色」：只去掉文字颜色，粗体/斜体/下划线/荧光笔都保留；颜色随后自动跟主题
+  function applyDefaultColor() {
+    var ed = $('editor');
+    if (!ed) return false;
+    ed.focus();
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return false;
+    var r = sel.getRangeAt(0);
+    if (r.collapsed) return false;                 // 没选中文字就不动
+    // 先把选区边界处被选中一半的文字节点切开，保证只包住选中的部分
+    var sc = r.startContainer, so = r.startOffset;
+    if (sc.nodeType === 3 && so > 0 && so < sc.nodeValue.length) sc.splitText(so);
+    var ec = r.endContainer, eo = r.endOffset;
+    if (ec.nodeType === 3 && eo > 0 && eo < ec.nodeValue.length) ec.splitText(eo);
+    r = window.getSelection().getRangeAt(0).cloneRange();
+    var nodes = [], walker = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT, null), t;
+    while ((t = walker.nextNode())) {
+      try { if (r.intersectsNode(t)) nodes.push(t); } catch (e) { }
+    }
+    var first = null, last = null;
+    nodes.forEach(function (tn) {
+      if (!tn.nodeValue) return;
+      var p = tn.parentNode;
+      if (p && p.classList && p.classList.contains('fg-default')) { if (!first) first = tn; last = tn; return; }
+      var sp = document.createElement('span');
+      sp.className = 'fg-default';
+      p.insertBefore(sp, tn);
+      sp.appendChild(tn);
+      if (!first) first = tn;
+      last = tn;
+    });
+    if (!first) return;
+    var nr = document.createRange();
+    try { nr.setStart(first, 0); nr.setEnd(last, last.nodeValue.length); } catch (e) { return false; }
+    sel.removeAllRanges(); sel.addRange(nr);
+    syncFromEditor();
+    return true;
   }
   // 清除格式：removeFormat 不会去掉荧光笔背景色，用 hiliteColor 透明来去（Chromium 会自动拆开 span，只清选中的那一段）
   function sweepTransparentBg() {
@@ -937,9 +1761,16 @@
   }
   function clearFormat() {
     var editor = $('editor');
+    if (!editor) return;
+    // 只有光标/选区在正文里才执行清除。
+    // 光标在文件名行、标签、搜索框、工具栏等非正文位置时，以前会抢走焦点、把光标拽回正文，
+    // 再按正文里的光标位置给「已选颜色」勾重新上色，看起来就像清除格式把颜色重置成了黑色。
+    if (!editor.contains(document.activeElement)) return;
     var sel = window.getSelection();
     if (!sel || !sel.rangeCount) return;
-    var range = sel.getRangeAt(0).cloneRange();
+    var r0 = sel.getRangeAt(0);
+    if (!editor.contains(r0.commonAncestorContainer)) return;
+    var range = r0.cloneRange();
     editor.focus();
     sel.removeAllRanges(); sel.addRange(range);
     var preColor = checkedSwatchColor('colorRow');
@@ -1015,7 +1846,7 @@
     }).join('');
   }
   function markSwatch(rowId, value, clearIfNone) {
-    var v = toHex(value);
+    var v = value === 'default' ? 'default' : toHex(value);
     var set = swatchSets[rowId] || [];
     var hit = false;
     if (v) set.forEach(function (s) { if (s.c === v) hit = true; });
@@ -1029,6 +1860,14 @@
   }
   function clearSwatches(rowId) {
     (swatchSets[rowId] || []).forEach(function (s) { s.btn.classList.remove('on'); });
+  }
+  function markSwatchIndex(rowId, idx) {
+    var set = swatchSets[rowId] || [];
+    if (!set.length) return;
+    if (idx < 0 || idx >= set.length) idx = 0;
+    set.forEach(function (s, i) { s.btn.classList.toggle('on', i === idx); });
+    var row = $(rowId);
+    if (row) row.setAttribute('data-picked', set[idx].c);
   }
   function checkedSwatchColor(rowId) {
     var set = swatchSets[rowId] || [];
@@ -1055,6 +1894,7 @@
           queueSave();
           return;
         }
+        // 只有选中文字才变色（不选文字时点颜色不影响已经写好的内容）
         applyFormat(isHl ? 'hiliteColor' : 'foreColor', c);
         markSwatch(rowId, c);
         S.settings[isHl ? 'lastHl' : 'lastColor'] = c;
@@ -1111,25 +1951,36 @@
     return null;
   }
   // 当前光标/选区对应的「有效颜色 / 有效高亮」
-  function formatElAtCaret(forward) {
+  function formatElAtCaret() {
     var sel = window.getSelection();
     if (!sel || !sel.rangeCount) return null;
     var r = sel.getRangeAt(0);
     var root = $('editor');
     var el = null;
-    if (forward) el = nextCharEl(r.startContainer, r.startOffset, root);
-    if (!el && !r.collapsed) el = nextCharEl(r.startContainer, r.startOffset, root);
-    if (!el) el = prevCharEl(r.startContainer, r.startOffset, root);
-    if (!el) el = nextCharEl(r.startContainer, r.startOffset, root);
+    if (r.collapsed) {
+      // 光标没选中文字时：颜色跟「光标左边的字」走（和 Word 一致）
+      el = prevCharEl(r.startContainer, r.startOffset, root) || nextCharEl(r.startContainer, r.startOffset, root);
+    } else {
+      // 选中文字时：按选区开头的颜色
+      el = nextCharEl(r.startContainer, r.startOffset, root) || prevCharEl(r.startContainer, r.startOffset, root);
+    }
     return el;
   }
   function syncSwatches() {
     var ed = $('editor');
     if (!ed || !document.activeElement || document.activeElement !== ed) return;
     try {
-      var el = formatElAtCaret(true);
+      var el = formatElAtCaret();
       var color = el ? toHex(getComputedStyle(el).color) : '';
-      markSwatch('colorRow', color);
+      var defColor = toHex(getComputedStyle(ed).color);
+      if (color && defColor && color === defColor) {
+        // 默认文字（含没上色的描写行）：浅色模式勾黑、深色模式勾白，不能让勾停在上一操作的颜色上
+        markSwatchIndex('colorRow', S.settings.dark ? 1 : 0);
+      } else if (color) {
+        markSwatch('colorRow', color, true);   // 有匹配就勾上；没匹配就收掉勾，避免误导
+      } else {
+        clearSwatches('colorRow');
+      }
       var bg = el ? getComputedStyle(el).backgroundColor : '';
       markSwatch('hlRow', bg, true);
     } catch (e) { }
@@ -1175,7 +2026,8 @@
     }
     var range = sel.getRangeAt(0);
     try { range.deleteContents(); } catch (e) { }
-    var tpl = '【' + role + '】：“”';
+    var suffixOn = S.settings.dialogueSuffix !== false;
+    var tpl = '-【' + role + '】：“”' + (suffixOn ? '（）' : '');
     var p = document.createElement('div');
     p.textContent = tpl;
     var node = range.startContainer;
@@ -1189,8 +2041,10 @@
     }
     var textNode = p.firstChild;
     if (textNode) {
+      var caretPos = role ? tpl.indexOf('”') : tpl.indexOf('】');
+      if (caretPos < 0) caretPos = tpl.length;
       var r2 = document.createRange();
-      r2.setStart(textNode, role ? tpl.length - 1 : 1);
+      r2.setStart(textNode, caretPos);
       r2.collapse(true);
       sel.removeAllRanges(); sel.addRange(r2);
     }
@@ -1213,7 +2067,7 @@
     try { range.deleteContents(); } catch (e) { }
     var p = document.createElement('div');
     p.setAttribute('data-desc', '1');
-    p.appendChild(document.createElement('br'));
+    p.textContent = '-';
     var node = range.startContainer;
     var block = node.nodeType === 1 ? node : node.parentNode;
     while (block && block !== editor && !/^(DIV|P|LI|H[1-6]|BLOCKQUOTE)$/.test(block.tagName)) block = block.parentNode;
@@ -1223,7 +2077,8 @@
       editor.appendChild(p);
     }
     var r2 = document.createRange();
-    r2.setStart(p, 0); r2.collapse(true);
+    r2.setStart(p.firstChild, 1);
+    r2.collapse(true);
     sel.removeAllRanges(); sel.addRange(r2);
     syncFromEditor();
   }
@@ -1270,11 +2125,61 @@
       togglePlaceholder(); updateCount(); updateStatus();
       clearTimeout(listTimer); listTimer = setTimeout(renderSidebar, 700);
       queueSave();
+      maybeShowRolePopup();
+      if (!$('findBar').hidden) { clearTimeout(findRefreshTimer); findRefreshTimer = setTimeout(refreshFind, 180); }
+    });
+    $('editor').addEventListener('compositionend', function () {
+      setTimeout(afterCompositionInput, 0);
     });
     $('editor').addEventListener('paste', function (ev) {
+      var items = (ev.clipboardData && ev.clipboardData.items) || [];
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.indexOf('image/') === 0) {
+          ev.preventDefault();
+          var f = items[i].getAsFile();
+          if (f) readImageFile(f, insertImageData);
+          return;
+        }
+      }
       ev.preventDefault();
       var text = (ev.clipboardData || window.clipboardData).getData('text/plain');
       document.execCommand('insertText', false, text);
+    });
+    $('editor').addEventListener('dragover', function (ev) {
+      var f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+      if (f && f.type && f.type.indexOf('image/') === 0) ev.preventDefault();
+    });
+    $('editor').addEventListener('drop', function (ev) {
+      var f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+      if (f && f.type && f.type.indexOf('image/') === 0) {
+        ev.preventDefault();
+        readImageFile(f, insertImageData);
+      }
+    });
+    $('editor').addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (t && t.tagName === 'IMG') selectImage(t);
+      else hideImageBox();
+    });
+    $('editor').addEventListener('dblclick', function (ev) {
+      var t = ev.target;
+      if (t && t.tagName === 'IMG') {
+        ev.preventDefault();
+        resetImageSize(t);
+        selectImage(t);
+      }
+    });
+    $('editor').addEventListener('scroll', function () { if (imgSel) positionImageBox(); });
+    $('editor').addEventListener('input', function () {
+      if (imgSel && (!imgSel.isConnected || !$('editor').contains(imgSel))) hideImageBox();
+    });
+    $('imgHandle').addEventListener('pointerdown', startImageDrag);
+    window.addEventListener('resize', function () { if (imgSel) positionImageBox(); });
+    document.addEventListener('mousedown', function (ev) {
+      if (!imgSel) return;
+      var t = ev.target;
+      if (t && t.closest && (t.closest('#imgBox') || (t.tagName === 'IMG' && $('editor').contains(t)))) return;
+      hideImageBox();
     });
     $('editor').addEventListener('keydown', function (ev) {
       if (ev.key !== 'Enter' || ev.shiftKey || ev.ctrlKey || ev.altKey) return;
@@ -1322,7 +2227,7 @@
       } else if (n.grid === 'script') {
         n.grid = 'none';
       }
-      applyGrid(); updateScriptHint(); queueSave();
+      applyGrid(); updateScriptHint(); updateTitleTag(); updateScriptBtn(); updateScriptStats(); queueSave();
     });
     $('roleSel').addEventListener('change', function () {
       S.settings.currentRole = $('roleSel').value; queueSave();
@@ -1378,6 +2283,8 @@
     if (tag === 'br') { blocks.push(runs.splice(0)); return; }
     var s2 = {};
     for (var k in st) s2[k] = st[k];
+    // 「默认色」段落：颜色跟随主题，导出时按默认色处理（不写颜色）
+    if (node.classList && node.classList.contains('fg-default')) delete s2.color;
     var style = node.style || {};
     var c = parseColor(style.color || ''); if (c) s2.color = c;
     if (node.getAttribute && node.getAttribute('color')) {
@@ -1389,7 +2296,68 @@
     if (tag === 'u' || (style.textDecorationLine || style.textDecoration || '').indexOf('underline') >= 0) s2.u = 1;
     Array.prototype.forEach.call(node.childNodes, function (ch) { collectInline(ch, s2, runs, blocks); });
   }
-  function htmlToBlocks(html) {
+  function imageInfoFromNode(node) {
+    if (!node || node.nodeType !== 1) return null;
+    var img = null;
+    var tag = node.tagName.toLowerCase();
+    if (tag === 'img') img = node;
+    else if (node.classList && node.classList.contains('img-block')) img = node.querySelector('img');
+    else if (node.querySelector && node.querySelector('img') && !(node.textContent || '').trim()) img = node.querySelector('img');
+    if (!img) return null;
+    return {
+      src: img.getAttribute('src') || '',
+      rel: img.getAttribute('data-img') || '',
+      width: parseFloat(img.style.width) || 0,
+      naturalW: img.naturalWidth || 0,
+      naturalH: img.naturalHeight || 0
+    };
+  }
+  function styleForNode(node, st) {
+    var s2 = {};
+    for (var k in st) s2[k] = st[k];
+    if (node.classList && node.classList.contains('fg-default')) delete s2.color;
+    var style = node.style || {};
+    var c = parseColor(style.color || ''); if (c) s2.color = c;
+    if (node.getAttribute && node.getAttribute('color')) {
+      var fc = parseColor(node.getAttribute('color') || ''); if (fc) s2.color = fc;
+    }
+    var hl = parseColor(style.backgroundColor || ''); if (hl) s2.hl = hl;
+    var tag = node.tagName ? node.tagName.toLowerCase() : '';
+    if (tag === 'b' || tag === 'strong' || style.fontWeight === 'bold' || parseInt(style.fontWeight || '0', 10) >= 600) s2.b = 1;
+    if (tag === 'i' || tag === 'em' || style.fontStyle === 'italic') s2.i = 1;
+    if (tag === 'u' || (style.textDecorationLine || style.textDecoration || '').indexOf('underline') >= 0) s2.u = 1;
+    return s2;
+  }
+  // 按文档顺序收集文字和图片，图片成为独立块，导出时能跟在原来的位置
+  function collectOrdered(parent, st, runs, out, desc) {
+    Array.prototype.forEach.call(parent.childNodes, function (ch) {
+      if (ch.nodeType === 3) {
+        if (!ch.nodeValue) return;
+        var r = { t: ch.nodeValue };
+        if (st.color) r.color = st.color;
+        if (st.hl) r.hl = st.hl;
+        if (st.b) r.b = 1;
+        if (st.i) r.i = 1;
+        if (st.u) r.u = 1;
+        runs.push(r);
+        return;
+      }
+      if (ch.nodeType !== 1) return;
+      var tag = ch.tagName.toLowerCase();
+      if (tag === 'img') {
+        if (runs.length) out.push({ runs: runs.splice(0), desc: desc });
+        var info = imageInfoFromNode(ch);
+        if (info) out.push({ img: info, desc: desc });
+        return;
+      }
+      if (tag === 'br') {
+        if (runs.length) out.push({ runs: runs.splice(0), desc: desc });
+        return;
+      }
+      collectOrdered(ch, styleForNode(ch, st), runs, out, desc);
+    });
+  }
+  function legacyHtmlToBlocks(html) {
     var div = document.createElement('div'); div.innerHTML = html || '';
     var blocks = [];
     var hasBlock = Array.prototype.some.call(div.childNodes, function (n) {
@@ -1420,6 +2388,59 @@
     while (blocks.length > 1 && blocks[blocks.length - 1].runs.length === 0) blocks.pop();
     if (!blocks.length) blocks.push({ runs: [] });
     return blocks;
+  }
+  // 图片先用占位符替换，再交给原来的文字/描写解析器，最后把占位符拆回图片块。
+  // 这样既能保留 data-desc 描写标记，又能让图片出现在原来的位置。
+  function htmlToBlocks(html) {
+    var holder = document.createElement('div'); holder.innerHTML = html || '';
+    var imgs = [];
+    var list = Array.prototype.slice.call(holder.querySelectorAll('img'));
+    list.forEach(function (img, i) {
+      var info = imageInfoFromNode(img);
+      if (info) imgs.push(info);
+      var t = document.createTextNode('@@XZTIMG' + i + '@@');
+      if (img.parentNode) img.parentNode.replaceChild(t, img);
+    });
+    var blocks = legacyHtmlToBlocks(holder.innerHTML);
+    var out = [];
+    blocks.forEach(function (b) {
+      if (!b.runs) { out.push(b); return; }
+      var desc = b.desc ? 1 : 0;
+      var runs = [];
+      function flush() {
+        if (runs.length) { out.push({ runs: runs, desc: desc }); runs = []; }
+      }
+      b.runs.forEach(function (r) {
+        var text = r.t || '';
+        var re = /@@XZTIMG(\d+)@@/g, last = 0, m, found = false;
+        while ((m = re.exec(text))) {
+          found = true;
+          if (m.index > last) {
+            var rr = { t: text.slice(last, m.index) };
+            if (r.color) rr.color = r.color;
+            if (r.hl) rr.hl = r.hl;
+            if (r.b) rr.b = 1; if (r.i) rr.i = 1; if (r.u) rr.u = 1;
+            runs.push(rr);
+          }
+          flush();
+          if (imgs[+m[1]]) out.push({ img: imgs[+m[1]], desc: desc });
+          last = m.index + m[0].length;
+        }
+        if (last < text.length) {
+          var rr2 = { t: text.slice(last) };
+          if (r.color) rr2.color = r.color;
+          if (r.hl) rr2.hl = r.hl;
+          if (r.b) rr2.b = 1; if (r.i) rr2.i = 1; if (r.u) rr2.u = 1;
+          runs.push(rr2);
+        } else if (!found) {
+          runs.push(r);
+        }
+      });
+      flush();
+      if (!b.runs.length) out.push(b);
+    });
+    if (!out.length) out.push({ runs: [] });
+    return out;
   }
   function buildPayload(range) {
     var root = activeNote(); if (!root) return null;
@@ -1625,12 +2646,87 @@
     else if (blanks) el.textContent = t('roleCountBlank', { n: named, k: blanks });
     else el.textContent = t('roleCount', { n: named });
   }
+  /* ---------------- 未使用图片清理 ---------------- */
+  var orphanScanCache = null;
+  function collectImageRefs() {
+    if (activeNote()) { try { syncFromEditor(); } catch (e) { } }
+    var refs = [];
+    function addHtml(html) {
+      if (!html) return;
+      var s = String(html);
+      var re = /(?:data-img="([^"]+)"|src="(file:\/\/[^"]+)")/g, m;
+      while ((m = re.exec(s))) refs.push(m[1] || m[2]);
+    }
+    (S.notes || []).forEach(function (n) {
+      addHtml(n.contentHtml);
+      (n.hist || []).forEach(function (h) { if (h && h.c) addHtml(h.c); });
+    });
+    ensureCards();
+    Object.keys(S.cards.characters).forEach(function (name) {
+      var c = S.cards.characters[name]; if (!c) return;
+      ['designImage', 'threeViewImage'].forEach(function (f) { if (c[f]) refs.push(c[f]); if (c[f + 'Rel']) refs.push(c[f + 'Rel']); });
+    });
+    (S.cards.worlds || []).forEach(function (w) { if (w && w.image) refs.push(w.image); });
+    return refs;
+  }
+  function formatBytes(n) {
+    n = Number(n) || 0;
+    if (n >= 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
+    if (n >= 1024) return Math.round(n / 1024) + ' KB';
+    return n + ' B';
+  }
+  function scanOrphansUi() {
+    if (!api || !api.scanOrphanImages) return;
+    var refs = collectImageRefs();
+    $('btnOrphanScan').disabled = true;
+    $('orphanInfo').textContent = '扫描中…';
+    $('btnOrphanClean').hidden = true;
+    orphanScanCache = null;
+    api.scanOrphanImages(refs).then(function (r) {
+      $('btnOrphanScan').disabled = false;
+      if (!r || !r.ok) { $('orphanInfo').textContent = '扫描失败'; return; }
+      orphanScanCache = { refs: refs, files: r.files || [], dir: r.dir };
+      if (!r.count) {
+        $('orphanInfo').textContent = '没有未使用图片';
+        $('btnOrphanClean').hidden = true;
+        return;
+      }
+      $('orphanInfo').textContent = '发现 ' + r.count + ' 张，共 ' + formatBytes(r.bytes) + '（10 分钟内新图不处理）';
+      $('btnOrphanClean').hidden = false;
+      $('btnOrphanClean').textContent = '移到回收文件夹（' + r.count + ' 张）';
+    }).catch(function () {
+      $('btnOrphanScan').disabled = false;
+      $('orphanInfo').textContent = '扫描失败';
+    });
+  }
+  function cleanOrphansUi() {
+    if (!orphanScanCache || !orphanScanCache.files.length) return;
+    var cache = orphanScanCache;
+    var names = cache.files.map(function (f) { return f.name; });
+    var bytes = cache.files.reduce(function (a, f) { return a + (f.size || 0); }, 0);
+    if (!confirm('把 ' + names.length + ' 张未使用图片（' + formatBytes(bytes) + '）移到「图片-回收」文件夹？\n不会直接删除，之后可以从回收文件夹找回。')) return;
+    // 点确认前重新收集一次引用，防止扫描后你又把图插回正文
+    var freshRefs = collectImageRefs();
+    api.cleanOrphanImages(names, freshRefs).then(function (r) {
+      if (!r || !r.ok) { setHint('清理失败：' + ((r && r.error) || '?')); return; }
+      $('orphanInfo').textContent = '已移动 ' + r.moved + ' 张到回收文件夹';
+      $('btnOrphanClean').hidden = true;
+      orphanScanCache = null;
+      setHint('已移动到：' + (r.dir || '图片-回收'));
+    });
+  }
   function openSettings() {
     return api.info().then(function (info) {
       $('setVersion').textContent = 'X' + (info.version || appVersion);
       $('setDataDir').textContent = info.dataDir || '';
       $('rolesText').value = (S.settings.roles || []).join('\n');
       $('langSel').value = S.settings.lang || 'zh';
+      $('dialogueSuffix').checked = S.settings.dialogueSuffix !== false;
+      $('aboutVersion').textContent = 'X' + (info.version || appVersion);
+      $('authorName').value = S.settings.authorName || '';
+      $('orphanInfo').textContent = '尚未扫描';
+      $('btnOrphanClean').hidden = true;
+      orphanScanCache = null;
       setHint('');
       I18N.apply();
       updateRolesCount();
@@ -1657,7 +2753,7 @@
   var obPage = 0;
   function openOnboard(page) {
     if (!S) return false;
-    obPage = Math.max(0, Math.min(2, page || 0));
+    obPage = Math.max(0, Math.min(4, page || 0));
     if ($('obPath')) $('obPath').textContent = dataDir || '（默认位置）';
     if ($('obLang')) $('obLang').value = S.settings.lang || 'zh';
     if ($('obRoles')) $('obRoles').value = (S.settings.roles || []).join('\n');
@@ -1667,13 +2763,18 @@
     return true;
   }
   function renderObPage() {
-    for (var i = 1; i <= 3; i++) {
+    for (var i = 1; i <= 5; i++) {
       var el = $('obP' + i);
       if (el) el.hidden = (i !== obPage + 1);
     }
-    $('obStep').textContent = (obPage + 1) + ' / 3';
+    $('obStep').textContent = (obPage + 1) + ' / 5';
+    var dots = $('obDots');
+    if (dots) {
+      var ds = dots.querySelectorAll('i');
+      for (var k = 0; k < ds.length; k++) ds[k].classList.toggle('on', k === obPage);
+    }
     $('obPrev').disabled = (obPage === 0);
-    $('obNext').textContent = obPage === 2 ? '完成' : '下一步';
+    $('obNext').textContent = obPage === 4 ? '完成' : '下一步';
   }
   function closeOnboard(save) {
     if (save && S) {
@@ -1681,6 +2782,7 @@
       var roles = roleLines($('obRoles').value);
       S.settings.roles = roles;
       S.settings.rolesTouched = true;
+      syncCardsToRoles();
       if (roles.indexOf(S.settings.currentRole) < 0) S.settings.currentRole = roles[0] || '';
       var lang = $('obLang').value;
       if (lang !== S.settings.lang) {
@@ -1693,11 +2795,15 @@
   }
   function bindOnboard() {
     $('obNext').onclick = function () {
-      if (obPage >= 2) closeOnboard(true);
+      if (obPage >= 4) closeOnboard(true);
       else { obPage++; renderObPage(); }
     };
     $('obPrev').onclick = function () { if (obPage > 0) { obPage--; renderObPage(); } };
     $('obSkip').onclick = function () { closeOnboard(true); };
+    $('obStart').onclick = function () {
+      closeOnboard(true);
+      if (S && !S.notes.length) newNote(null);
+    };
     $('obUseDir').onclick = function () {
       $('obDirHint').textContent = '好，就存在这里。以后随时可以在「设置 → 更改保存位置」里换。';
     };
@@ -1715,6 +2821,9 @@
     $('settingsClose').onclick = function () { $('settingsModal').hidden = true; };
     $('rolesText').addEventListener('input', updateRolesCount);
     $('setOpenFolder').onclick = function () { api.openFolder(); };
+    $('setOpenImages').onclick = function () { if (api && api.openImages) api.openImages(); };
+    $('btnOrphanScan').onclick = scanOrphansUi;
+    $('btnOrphanClean').onclick = cleanOrphansUi;
     $('setChangeDir').onclick = function () { changeDataDir(); };
     $('langSel').onchange = function () {
       var v = $('langSel').value;
@@ -1748,19 +2857,379 @@
     };
     $('rolesSave').onclick = function () {
       var roles = roleLines($('rolesText').value);      // 空白行原样保留，只去掉末尾多余空行
+      // 角色表删掉有设定内容的角色时，先提醒会一起删除设定卡和图片
+      var oldNames = nonEmptyRoleNames();
+      var newNames = [];
+      roles.forEach(function (r) { r = String(r || '').trim(); if (r && newNames.indexOf(r) < 0) newNames.push(r); });
+      var risky = oldNames.filter(function (r) { return newNames.indexOf(r) < 0 && cardHasContent(r); });
+      if (risky.length && !confirm('角色表里删除了 ' + risky.length + ' 个有设定内容的角色，对应的设定卡和设定图也会一起删除。继续保存吗？')) {
+        $('rolesText').value = (S.settings.roles || []).join('\n');
+        return;
+      }
       S.settings.roles = roles;
       S.settings.rolesTouched = true;
+      // 角色表是名单：新增角色建空设定卡，删掉的角色设定卡一起清掉
+      syncCardsToRoles();
       if (roles.indexOf(S.settings.currentRole) < 0) S.settings.currentRole = roles[0] || '';
       $('rolesText').value = roles.join('\n');
       renderRoleSel(); queueSave(); updateRolesCount();
+      if (!$('cardsModal').hidden) renderCards();
+      if (sidebarView === 'outline') renderSidebar();
       setHint(roles.length ? t('settingsSaved') : t('rolesCleared'));
+    };
+    $('dialogueSuffix').onchange = function () {
+      S.settings.dialogueSuffix = !!this.checked;
+      queueSave();
+      updateScriptHint();
+      setHint(t('settingsSaved'));
+    };
+    $('authorName').oninput = function () {
+      S.settings.authorName = this.value.trim() || '浪-橙光地雷';
+      queueSave();
     };
   }
 
   function applySettings() {
     document.body.classList.toggle('dark', !!S.settings.dark);
     document.documentElement.style.setProperty('--fs', (S.settings.fontSize || 20) + 'px');
+    var db = $('btnDark');
+    if (db) {
+      db.textContent = S.settings.dark ? '浅色' : '深色';
+      db.title = S.settings.dark ? '切换到浅色模式' : '切换到深色模式';
+    }
     updateTint();
+  }
+
+  /* ---------------- 正文查找替换 ---------------- */
+  var findMatches = [], findIndex = -1, findQuery = '', findRefreshTimer = null;
+  function clearFindHighlights() {
+    try { if (window.CSS && CSS.highlights) { CSS.highlights.delete('find-hit'); CSS.highlights.delete('find-active'); } } catch (e) { }
+  }
+  function applyFindHighlights() {
+    if (typeof Highlight === 'undefined' || !window.CSS || !CSS.highlights) {
+      if (findIndex >= 0 && findMatches[findIndex]) {
+        try { var s = window.getSelection(); s.removeAllRanges(); s.addRange(findMatches[findIndex]); } catch (e) { }
+      }
+      return;
+    }
+    clearFindHighlights();
+    if (!findMatches.length) return;
+    var hits = [], active = null;
+    findMatches.forEach(function (r, i) { if (i === findIndex) active = r; else hits.push(r); });
+    try {
+      if (hits.length) CSS.highlights.set('find-hit', new Highlight(...hits));
+      if (active) CSS.highlights.set('find-active', new Highlight(active));
+    } catch (e) { }
+  }
+  function updateFindCount() {
+    var el = $('findCount');
+    if (!el) return;
+    el.textContent = findMatches.length ? ((findIndex + 1) + '/' + findMatches.length) : '0/0';
+  }
+  function mapFindOffset(nodes, offset, isEnd) {
+    for (var i = 0; i < nodes.length; i++) {
+      var m = nodes[i], len = m.node.nodeValue.length;
+      if (offset > m.start && offset < m.start + len) return { node: m.node, off: offset - m.start };
+      if (offset === m.start) return { node: m.node, off: 0 };
+      if (offset === m.start + len) {
+        if (!isEnd && i + 1 < nodes.length) return { node: nodes[i + 1].node, off: 0 };
+        return { node: m.node, off: len };
+      }
+    }
+    return null;
+  }
+  function scrollToFind() {
+    if (findIndex < 0 || !findMatches[findIndex]) return;
+    var r = findMatches[findIndex];
+    var rect = r.getBoundingClientRect(), box = $('editorBox').getBoundingClientRect(), ed = $('editor');
+    if (!rect || !rect.height) return;
+    if (rect.top < box.top + 60 || rect.bottom > box.bottom - 30) {
+      ed.scrollTop += (rect.top - box.top) - ed.clientHeight / 2;
+    }
+  }
+  function refreshFind() {
+    var ed = $('editor');
+    if (!ed) return;
+    findMatches = []; findIndex = -1;
+    findQuery = $('findText').value || '';
+    clearFindHighlights();
+    if (findQuery) {
+      var nodes = [], str = '';
+      var w = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT, null), t;
+      while ((t = w.nextNode())) { nodes.push({ node: t, start: str.length }); str += t.nodeValue; }
+      var caseSensitive = $('findCase').checked;
+      var needle = caseSensitive ? findQuery : findQuery.toLowerCase();
+      var hay = caseSensitive ? str : str.toLowerCase();
+      var pos = 0, hit;
+      while ((hit = hay.indexOf(needle, pos)) >= 0) {
+        var a = mapFindOffset(nodes, hit, false), b = mapFindOffset(nodes, hit + findQuery.length, true);
+        if (a && b) {
+          var r = document.createRange();
+          try { r.setStart(a.node, a.off); r.setEnd(b.node, b.off); findMatches.push(r); } catch (e) { }
+        }
+        pos = hit + Math.max(1, findQuery.length);
+      }
+      if (findMatches.length) findIndex = 0;
+    }
+    updateFindCount();
+    applyFindHighlights();
+    if (findIndex >= 0) scrollToFind();
+  }
+  function findNext() { if (!findMatches.length) return; findIndex = (findIndex + 1) % findMatches.length; updateFindCount(); applyFindHighlights(); scrollToFind(); }
+  function findPrev() { if (!findMatches.length) return; findIndex = (findIndex - 1 + findMatches.length) % findMatches.length; updateFindCount(); applyFindHighlights(); scrollToFind(); }
+  function openFind() {
+    if (!activeNote()) return;
+    $('findBar').hidden = false;
+    $('findText').focus();
+    $('findText').select();
+    refreshFind();
+  }
+  function closeFind() {
+    $('findBar').hidden = true;
+    clearFindHighlights();
+    findMatches = []; findIndex = -1;
+    var ed = $('editor'); if (ed) ed.focus();
+  }
+  function replaceFindOne() {
+    if (findIndex < 0 || !findMatches[findIndex]) return;
+    var r = findMatches[findIndex];
+    var rep = $('replaceText').value;
+    try { r.deleteContents(); r.insertNode(document.createTextNode(rep)); } catch (e) { return; }
+    syncFromEditor(); refreshFind();
+  }
+  function replaceFindAll() {
+    if (!findQuery || !findMatches.length) return;
+    var rep = $('replaceText').value;
+    // 从后往前替换每一处 Range，支持跨颜色/格式节点的匹配
+    var ranges = findMatches.slice();
+    for (var i = ranges.length - 1; i >= 0; i--) {
+      try {
+        ranges[i].deleteContents();
+        ranges[i].insertNode(document.createTextNode(rep));
+      } catch (e) { }
+    }
+    syncFromEditor();
+    refreshFind();
+  }
+
+  /* ---------------- 剧本助手：角色候选 / 自动配对 / 统计 ---------------- */
+  var AUTO_PAIRS = { '【': '】', '（': '）', '“': '”', '‘': '’', '「': '」', '『': '』', '(': ')', '[': ']', '{': '}', '《': '》' };
+  var CLOSE_CHARS = { '】': 1, '）': 1, '”': 1, '’': 1, '」': 1, '』': 1, ')': 1, ']': 1, '}': 1, '》': 1 };
+  var rolePopupOpen = false, rolePopupItems = [], rolePopupIdx = 0, rolePopupNode = null, rolePopupStart = 0, rolePopupOff = 0;
+  function hideRolePopup() {
+    rolePopupOpen = false;
+    rolePopupNode = null;
+    var p = $('rolePopup');
+    if (p) { p.hidden = true; p.style.display = 'none'; p.innerHTML = ''; }
+  }
+  function renderRolePopup() {
+    var p = $('rolePopup');
+    if (!p) return;
+    p.innerHTML = '';
+    rolePopupItems.forEach(function (name, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'item' + (i === rolePopupIdx ? ' on' : '');
+      b.textContent = name;
+      b.onmousedown = function (ev) { ev.preventDefault(); };
+      b.onclick = function (ev) { ev.stopPropagation(); insertRoleName(name); };
+      p.appendChild(b);
+    });
+  }
+  function insertRoleName(name) {
+    var ed = $('editor');
+    var node = rolePopupNode;
+    if (!ed || !node || !node.isConnected) { hideRolePopup(); return; }
+    var val = node.nodeValue, off = rolePopupOff, start = rolePopupStart, end = off;
+    var hasClose = val.charAt(end) === '】';
+    if (hasClose) end++;
+    var after = val.slice(end);
+    var newVal, caret;
+    if (hasClose && /^[：:]\s*[“"]/.test(after)) {
+      // 自动配对已经生成「【】：“”（）」：只把角色名填进【】里，并跳到引号内
+      newVal = val.slice(0, start) + '【' + name + '】' + after;
+      var q = after.search(/[“"]/);
+      caret = start + ('【' + name + '】').length + (q >= 0 ? q + 1 : 0);
+    } else {
+      // 旧格式或手动输入：补全成「【角色】：“”（）」
+      var suffix = S.settings.dialogueSuffix !== false ? '（）' : '';
+      var insert = '【' + name + '】：“”' + suffix;
+      newVal = val.slice(0, start) + insert + val.slice(end);
+      caret = start + ('【' + name + '】：“').length;
+    }
+    node.nodeValue = newVal;
+    caret = Math.min(caret, newVal.length);
+    ed.focus();
+    try {
+      var r = document.createRange(); r.setStart(node, caret); r.collapse(true);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    } catch (e) { }
+    hideRolePopup();
+    syncFromEditor();
+  }
+  function afterCompositionInput() {
+    var n = activeNote();
+    if (!n) return;
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    var r = sel.getRangeAt(0);
+    if (r.collapsed && r.startContainer.nodeType === 3) {
+      var node = r.startContainer, off = r.startOffset;
+      var prev = node.nodeValue.charAt(off - 1), next = node.nodeValue.charAt(off);
+      var close = AUTO_PAIRS[prev];
+      // 输入法把开符号当组合输入提交时，补上收尾符号（普通模式「【」除外）
+      if (close && next !== close && !(prev === '【' && !n.script)) {
+        try {
+          document.execCommand('insertText', false, close);
+          sel.modify('move', 'backward', 'character');
+        } catch (e) { }
+      }
+    }
+    maybeShowRolePopup();
+  }
+  function maybeShowRolePopup() {    var n = activeNote();
+    if (!n || !n.script) { hideRolePopup(); return; }
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) { hideRolePopup(); return; }
+    var r = sel.getRangeAt(0);
+    if (!r.collapsed || r.startContainer.nodeType !== 3) { hideRolePopup(); return; }
+    var node = r.startContainer, off = r.startOffset, val = node.nodeValue;
+    var openIdx = val.lastIndexOf('【', off - 1);
+    if (openIdx < 0) { hideRolePopup(); return; }
+    var between = val.slice(openIdx + 1, off);
+    if (between.indexOf('】') >= 0) { hideRolePopup(); return; }
+    var query = between.trim();
+    var roles = cardRoleNames();
+    if (!roles.length) { hideRolePopup(); return; }
+    var items = roles.filter(function (x) { return !query || x.indexOf(query) >= 0; });
+    if (!items.length) { hideRolePopup(); return; }
+    rolePopupOpen = true;
+    rolePopupNode = node;
+    rolePopupStart = openIdx;
+    rolePopupOff = off;
+    rolePopupItems = items;
+    rolePopupIdx = 0;
+    renderRolePopup();
+    var p = $('rolePopup');
+    var caretRect = { left: 60, bottom: 80 };
+    try { var rr = document.createRange(); rr.setStart(node, off); rr.collapse(true); caretRect = rr.getBoundingClientRect(); } catch (e) { }
+    p.hidden = false;
+    p.style.display = 'block';
+    var left = caretRect.left, top = caretRect.bottom + 4;
+    if (left + p.offsetWidth > window.innerWidth - 8) left = window.innerWidth - p.offsetWidth - 8;
+    if (top + p.offsetHeight > window.innerHeight - 8) top = caretRect.top - p.offsetHeight - 4;
+    p.style.left = Math.max(4, left) + 'px';
+    p.style.top = Math.max(4, top) + 'px';
+  }
+  function scriptStatsFor(note) {
+    var stats = { dialogue: 0, narration: 0, desc: 0, descChars: 0, roleChars: {} };
+    var blocks = htmlToBlocks(note.contentHtml || '');
+    blocks.forEach(function (b) {
+      var text = (b.runs || []).map(function (r) { return r.t || ''; }).join('').trim();
+      if (!text) return;
+      if (b.desc) { stats.desc++; stats.descChars += text.replace(/^-\s*/, '').replace(/\s/g, '').length; return; }
+      var t = text.replace(/^-\s*/, '');
+      var m = t.match(/^【([^】]*)】\s*[：:]\s*([\s\S]*)$/);
+      if (m) {
+        var role = m[1].trim();
+        if (!role || role === '旁白') { stats.narration++; return; }
+        stats.dialogue++;
+        var body = m[2];
+        var q = body.match(/[“"]([\s\S]*)[”"]/);
+        var spoken = q ? q[1] : body;
+        spoken = spoken.replace(/[（(][^）)]*[）)]\s*$/, '').replace(/\s/g, '');
+        stats.roleChars[role] = (stats.roleChars[role] || 0) + spoken.length;
+      } else {
+        stats.narration++;
+      }
+    });
+    return stats;
+  }
+  function updateScriptStats() {
+    var el = $('scriptStats');
+    if (!el) return;
+    var n = activeNote();
+    if (!n || !n.script) { el.hidden = true; el.textContent = ''; el.title = ''; return; }
+    var s = scriptStatsFor(n);
+    var parts = [];
+    if (s.dialogue) parts.push('台词 ' + s.dialogue + ' 句');
+    if (s.narration) parts.push('旁白 ' + s.narration + ' 句');
+    if (s.desc) parts.push('描写 ' + s.desc + ' 段');
+    var names = Object.keys(s.roleChars);
+    if (names.length) parts.push(names.map(function (k) { return k + ' ' + s.roleChars[k] + ' 字'; }).join('、'));
+    el.textContent = parts.length ? parts.join(' ｜ ') : '还没有台词';
+    el.title = names.map(function (k) { return k + '：' + s.roleChars[k] + ' 字'; }).join('\n');
+    el.hidden = false;
+  }
+
+  /* ---------------- 专注模式 ---------------- */
+  function setFocusMode(on) {
+    document.body.classList.toggle('focus-mode', !!on);
+    if (on) {
+      var ed = $('editor');
+      if (ed && activeNote()) setTimeout(function () { try { ed.focus(); } catch (e) { } }, 0);
+    }
+  }
+
+  /* ---------------- 左侧：大纲 / 速查 ---------------- */
+  var sidebarView = 'files';
+  function setSidebarView(v) {
+    sidebarView = v === 'outline' ? 'outline' : 'files';
+    renderSidebar();
+  }
+  function renderSidebarOutline(box) {
+    ensureCards();
+    var h = document.createElement('div'); h.className = 'side-head'; h.textContent = '章节大纲'; box.appendChild(h);
+    var roots = S.notes.filter(function (n) { return !n.parentId; });
+    if (!roots.length) {
+      var em = document.createElement('div'); em.className = 'tree-empty'; em.textContent = '还没有文件'; box.appendChild(em);
+    } else {
+      function walkNote(n, depth) {
+        var row = document.createElement('div');
+        row.className = 'side-note' + (n.id === S.activeId ? ' active' : '');
+        row.style.paddingLeft = (6 + depth * 14) + 'px';
+        row.title = n.title || '未命名文件';
+        row.textContent = (n.title || '未命名文件');
+        var dots = document.createElement('span'); dots.className = 'dots'; dots.textContent = charCount(n) + ' 字';
+        row.appendChild(dots);
+        row.onclick = function () { activate(n.id); };
+        box.appendChild(row);
+        childrenOf(n.id).forEach(function (c) { walkNote(c, depth + 1); });
+      }
+      roots.forEach(function (r) { walkNote(r, 0); });
+    }
+    var hr = document.createElement('div'); hr.className = 'side-head'; hr.textContent = '角色速查'; box.appendChild(hr);
+    var roles = cardRoleNames();
+    if (!roles.length) {
+      var r0 = document.createElement('div'); r0.className = 'tree-empty'; r0.textContent = '角色表为空'; box.appendChild(r0);
+    } else {
+      roles.forEach(function (name) {
+        var card = S.cards.characters[name] || { profile: '', designImage: '', threeViewImage: '' };
+        var row = document.createElement('div'); row.className = 'side-card';
+        var t = document.createElement('div'); t.className = 't'; t.textContent = name; row.appendChild(t);
+        if (card.profile) { var d = document.createElement('div'); d.className = 'd'; d.textContent = card.profile; row.appendChild(d); }
+        if (card.designImage || card.threeViewImage) {
+          var imgs = document.createElement('div'); imgs.className = 'imgs';
+          if (card.designImage) { var i1 = document.createElement('img'); i1.src = card.designImage; imgs.appendChild(i1); }
+          if (card.threeViewImage) { var i2 = document.createElement('img'); i2.src = card.threeViewImage; imgs.appendChild(i2); }
+          row.appendChild(imgs);
+        }
+        row.onclick = function () { openCards('chars', name); };
+        box.appendChild(row);
+      });
+    }
+    var hw = document.createElement('div'); hw.className = 'side-head'; hw.textContent = '世界观背景'; box.appendChild(hw);
+    if (!S.cards.worlds.length) {
+      var w0 = document.createElement('div'); w0.className = 'tree-empty'; w0.textContent = '暂无世界观卡'; box.appendChild(w0);
+    } else {
+      S.cards.worlds.forEach(function (w) {
+        var row = document.createElement('div'); row.className = 'side-card';
+        var t = document.createElement('div'); t.className = 't'; t.textContent = w.title || '未命名世界观'; row.appendChild(t);
+        if (w.content) { var d = document.createElement('div'); d.className = 'd'; d.textContent = w.content; row.appendChild(d); }
+        row.onclick = function () { openCards('world', w.id); };
+        box.appendChild(row);
+      });
+    }
   }
 
   /* ---------------- 启动 ---------------- */
@@ -1783,10 +3252,117 @@
     $('btnImport').onclick = restoreBackup;
     $('btnFolder').onclick = function () { api.openFolder(); };
     $('btnExport').onclick = openExport;
+    $('btnImage').onclick = function () { pickImageFile(insertImageData); };
+    $('btnCards').onclick = function () { openCards(cardsState.tab || 'chars'); };
+    $('cardsClose').onclick = closeCards;
+    $('cardsTabChars').onclick = function () { openCards('chars'); };
+    $('cardsTabWorld').onclick = function () { openCards('world'); };
+    $('roleSel').addEventListener('contextmenu', function (ev) { showCardMenu(ev, 'role'); });
+    $('rolesText').addEventListener('contextmenu', function (ev) { showCardMenu(ev, 'role'); });
+    $('editor').addEventListener('contextmenu', function (ev) {
+      var n = activeNote();
+      if (n) showCardMenu(ev, 'editor');
+    });
     $('btnSettings').onclick = openSettings;
+    // 查找替换
+    $('findText').addEventListener('input', function () { clearTimeout(findRefreshTimer); findRefreshTimer = setTimeout(refreshFind, 120); });
+    $('findCase').addEventListener('change', refreshFind);
+    $('findPrev').onclick = findPrev;
+    $('findNext').onclick = findNext;
+    $('findReplaceOne').onclick = replaceFindOne;
+    $('findReplaceAll').onclick = replaceFindAll;
+    $('findClose').onclick = closeFind;
+    $('findText').addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); if (ev.shiftKey) findPrev(); else findNext(); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); closeFind(); }
+    });
+    $('replaceText').addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); if (ev.altKey) replaceFindAll(); else replaceFindOne(); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); closeFind(); }
+    });
+    // 左侧页签
+    $('sideTabFiles').onclick = function () { setSidebarView('files'); };
+    $('sideTabOutline').onclick = function () { setSidebarView('outline'); };
+    // 专注模式
+    $('btnFocus').onclick = function () { setFocusMode(true); };
+    $('focusExit').onclick = function () { setFocusMode(false); };
+    // 剧本角色候选：键盘上下/回车/ESC
+    document.addEventListener('keydown', function (ev) {
+      if (!rolePopupOpen) return;
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+        ev.preventDefault(); ev.stopPropagation();
+        rolePopupIdx = (rolePopupIdx + (ev.key === 'ArrowDown' ? 1 : -1) + rolePopupItems.length) % rolePopupItems.length;
+        renderRolePopup();
+      } else if (ev.key === 'Enter' || ev.key === 'Tab') {
+        ev.preventDefault(); ev.stopPropagation();
+        insertRoleName(rolePopupItems[rolePopupIdx]);
+      } else if (ev.key === 'Escape') {
+        ev.preventDefault(); ev.stopPropagation(); hideRolePopup();
+      }
+    }, true);
+    document.addEventListener('mousedown', function (ev) {
+      if (!rolePopupOpen) return;
+      var t = ev.target;
+      if (t && t.closest && t.closest('#rolePopup')) return;
+      hideRolePopup();
+    });
+    $('editor').addEventListener('blur', function () { setTimeout(hideRolePopup, 150); });
+    // 自动配对：【】（ ）“ ”（“”引号）等
+    $('editor').addEventListener('beforeinput', function (ev) {
+      if (ev.inputType !== 'insertText' || !ev.data || ev.data.length !== 1) return;
+      var sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      var r = sel.getRangeAt(0);
+      // 自动配对后，再输入同一个收尾符号时直接跨过，避免变成「】】」「””」
+      if (CLOSE_CHARS[ev.data] && r.collapsed) {
+        var cn = r.startContainer;
+        if (cn.nodeType === 3 && cn.nodeValue.charAt(r.startOffset) === ev.data) {
+          ev.preventDefault();
+          try { sel.modify('move', 'forward', 'character'); } catch (e) { }
+          return;
+        }
+      }
+      // 普通模式下「【」就是普通输入：不弹角色候选、不自动补「】」
+      if (ev.data === '【') {
+        var cur = activeNote();
+        if (!cur || !cur.script) return;
+        ev.preventDefault();
+        var suffix = S.settings.dialogueSuffix !== false ? '（）' : '';
+        var chosen = r.collapsed ? '' : r.toString();
+        var skel = (chosen ? '【' + chosen + '】' : '【】') + '：“”' + suffix;
+        document.execCommand('insertText', false, skel);
+        try {
+          if (chosen) {
+            var tail = '”' + suffix;
+            for (var i = 0; i < tail.length; i++) sel.modify('move', 'backward', 'character');
+          } else {
+            for (var j = 0; j < skel.length - 1; j++) sel.modify('move', 'backward', 'character');
+          }
+        } catch (e) { }
+        try { maybeShowRolePopup(); } catch (e) { }
+        return;
+      }
+      var close = AUTO_PAIRS[ev.data];
+      if (!close) return;
+      ev.preventDefault();
+      if (r.collapsed) {
+        document.execCommand('insertText', false, ev.data + close);
+        try { sel.modify('move', 'backward', 'character'); } catch (e) { }
+      } else {
+        var txt = r.toString();
+        document.execCommand('insertText', false, ev.data + txt + close);
+        try { sel.modify('move', 'backward', 'character'); } catch (e) { }
+      }
+      try { maybeShowRolePopup(); } catch (e) { }
+    });
     $('btnFontUp').onclick = function () { S.settings.fontSize = Math.min(32, (S.settings.fontSize || 20) + 2); applySettings(); queueSave(); };
     $('btnFontDown').onclick = function () { S.settings.fontSize = Math.max(14, (S.settings.fontSize || 20) - 2); applySettings(); queueSave(); };
-    $('btnDark').onclick = function () { S.settings.dark = !S.settings.dark; applySettings(); applyWallpaper(lastWallpaper); queueSave(); };
+    $('btnDark').onclick = function () {
+    S.settings.dark = !S.settings.dark;
+    applySettings();            // 只切主题；手动上的黑/白颜色保持不变（默认文字自动跟主题）
+    applyWallpaper(lastWallpaper);
+    queueSave();
+  };
     $('btnHistory').onclick = openHistory;
     $('btnExpandAll').onclick = function () { S.notes.forEach(function (n) { S.expanded[n.id] = true; }); renderSidebar(); queueSave(); };
     $('btnCollapseAll').onclick = function () { S.expanded = {}; renderSidebar(); queueSave(); };
@@ -1806,18 +3382,32 @@
       renderedId = null; renderAll(); queueSave();
     };
     $('search').addEventListener('input', function () { searchTerm = $('search').value; renderSidebar(); });
+    // 标签页多了以后可以用鼠标滚轮横向滚动
+    $('tabs').addEventListener('wheel', function (ev) {
+      if (this.scrollWidth <= this.clientWidth) return;
+      var d = Math.abs(ev.deltaY) > Math.abs(ev.deltaX) ? ev.deltaY : ev.deltaX;
+      if (!d) return;
+      this.scrollLeft += d;
+      ev.preventDefault();
+    }, { passive: false });
     document.addEventListener('keydown', function (e) {
       var ctrl = e.ctrlKey || e.metaKey;
       if (!ctrl) return;
       var k = (e.key || '').toLowerCase();
       if (k === 'n') { e.preventDefault(); newNote(null); }
       else if (k === 's') { e.preventDefault(); doBackup(); }
-      else if (k === 'f') { e.preventDefault(); $('search').focus(); }
+      else if (k === 'f') { e.preventDefault(); if (activeNote()) openFind(); else $('search').focus(); }
       else if (k === 'e') { e.preventDefault(); openExport(); }
     });
     if (api && api.onFlush) api.onFlush(function () { clearTimeout(saveTimer); doSave(); });
     document.addEventListener('click', function () { hideCtx(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hideCtx(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      if (rolePopupOpen) { hideRolePopup(); e.preventDefault(); return; }
+      if (!$('findBar').hidden) { closeFind(); e.preventDefault(); return; }
+      if (document.body.classList.contains('focus-mode')) { setFocusMode(false); e.preventDefault(); return; }
+      hideCtx();
+    });
     window.addEventListener('resize', hideCtx);
     window.addEventListener('beforeunload', function () { clearTimeout(saveTimer); });
   }
@@ -1838,8 +3428,11 @@
       restoreSwatches();
       $('dataPath').textContent = t('dataPath') + dataDir;
       api.wallpaperGet().then(function (w) { applyWallpaper(w); });
-      if (!S.notes.length) newNote(null);
-      else {
+      if (!S.notes.length) {
+        // 全新/空数据：左侧保持空白，不自动建文件；用户点「＋ 新建文件」再开始
+        S.activeId = null;
+        renderAll();
+      } else {
         if (!S.activeId || !noteById(S.activeId)) S.activeId = S.openTabs[0] || S.notes[0].id;
         if (S.openTabs.indexOf(S.activeId) < 0) S.openTabs.push(S.activeId);
         renderAll();
@@ -2211,6 +3804,13 @@
     testOnboard: testOnboard,
     closeOnboard: closeOnboard,
     setLang: setLang,
+    insertImage: insertImageData,
+    openCards: openCards,
+    closeCards: closeCards,
+    renderCards: renderCards,
+    openSettings: openSettings,
+    updateTitleTag: updateTitleTag,
+  htmlToBlocks: htmlToBlocks,
     state: function () { return S; }
   };
 

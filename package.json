@@ -1,8 +1,9 @@
 {
-  "name": "xiezuotai",
+  "name": "writedesk",
   "productName": "写作台",
-  "version": "2.3.5",
+  "version": "3.2.1",
   "description": "写作台 · 写作软件（配色/荧光笔/格线/剧本模式/多层子文件/多格式导出/壁纸）",
+  "homepage": "https://github.com/612-Orange-Light-235/WriteDesk",
   "main": "main.js",
   "author": "同人制作组",
   "license": "MIT",

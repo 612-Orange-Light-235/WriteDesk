@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const https = require('https');
 const http = require('http');
+const { pathToFileURL, fileURLToPath } = require('url');
 const exporters = require('./exporters');
 
 // ---------- 应用身份 ----------
@@ -74,6 +75,7 @@ function pickDefaultDataDir() {
 function dataPaths() {
   return {
     dir: dataDir, txt: path.join(dataDir, '正文'), bak: path.join(dataDir, '备份'),
+    img: path.join(dataDir, '图片'),
     file: path.join(dataDir, '笔记数据.json'),
     index: path.join(dataDir, '正文', '_索引.json'),
     outline: path.join(dataDir, '正文', '_目录.md')
@@ -81,7 +83,7 @@ function dataPaths() {
 }
 function ensureDataDir() {
   const p = dataPaths();
-  [p.dir, p.txt, p.bak].forEach(function (d) { try { fs.mkdirSync(d, { recursive: true }); } catch (e) { } });
+  [p.dir, p.txt, p.bak, p.img].forEach(function (d) { try { fs.mkdirSync(d, { recursive: true }); } catch (e) { } });
   return p;
 }
 function resolveDataDir() {
@@ -167,14 +169,211 @@ function mirrorTxt(notes) {
   } catch (e) { }
 }
 let lastBackupAt = 0;
-function maybeBackup(data, force) {
-  const now = Date.now();
+
+/* ---------------- 正文图片：独立文件存储 ---------------- */
+function imageExtFromMime(mime) {
+  var m = String(mime || '').toLowerCase();
+  if (m === 'image/jpeg' || m === 'image/jpg') return 'jpg';
+  if (m === 'image/webp') return 'webp';
+  if (m === 'image/gif') return 'gif';
+  if (m === 'image/bmp') return 'bmp';
+  return 'png';
+}
+function parseImageDataUrl(dataUrl) {
+  var m = String(dataUrl || '').match(/^data:image\/([a-z0-9.+-]+);base64,([\s\S]+)$/i);
+  if (!m) return null;
+  return { buf: Buffer.from(m[2], 'base64'), ext: imageExtFromMime('image/' + m[1]) };
+}
+function saveImageBuffer(buf, ext) {
+  ensureDataDir();
+  var dir = dataPaths().img;
+  var name = 'img-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+  var file = path.join(dir, name);
+  fs.writeFileSync(file, buf);
+  return { ok: true, url: pathToFileURL(file).href, rel: '图片/' + name };
+}
+function saveImageDataUrl(dataUrl) {
+  var p = parseImageDataUrl(dataUrl);
+  if (!p) return { ok: false, error: '不是有效的图片数据' };
+  return saveImageBuffer(p.buf, p.ext);
+}
+function imageSrcToBuffer(src) {
+  try {
+    var s = String(src || '');
+    if (/^data:image\//i.test(s)) return parseImageDataUrl(s);
+    if (/^file:\/\//i.test(s)) {
+      var f = fileURLToPath(s);
+      if (!fs.existsSync(f)) return null;
+      return { buf: fs.readFileSync(f), ext: (path.extname(f).slice(1) || 'png').toLowerCase().replace('jpeg', 'jpg') };
+    }
+    if (/^图片[\\/]/.test(s)) {
+      var f2 = path.join(dataDir, s);
+      if (!fs.existsSync(f2)) return null;
+      return { buf: fs.readFileSync(f2), ext: (path.extname(f2).slice(1) || 'png').toLowerCase().replace('jpeg', 'jpg') };
+    }
+  } catch (e) { }
+  return null;
+}
+function migrateHtmlImages(html, state) {
+  if (!html || String(html).indexOf('data:image/') < 0) return html;
+  return String(html).replace(/(<img\b[^>]*?\bsrc\s*=\s*["'])(data:image\/[^"']+)(["'])/gi, function (m, pre, data, post) {
+    var saved = saveImageDataUrl(data);
+    if (!saved || !saved.ok) return m;
+    state.changed = true;
+    return pre + saved.url + post + ' data-img="' + saved.rel + '"';
+  });
+}
+function migrateImagesInData(data) {
+  var state = { changed: false };
+  if (!data || typeof data !== 'object') return { data: data, changed: false };
+  (Array.isArray(data.notes) ? data.notes : []).forEach(function (n) {
+    if (typeof n.contentHtml === 'string') n.contentHtml = migrateHtmlImages(n.contentHtml, state);
+    if (Array.isArray(n.hist)) n.hist.forEach(function (h) { if (h && typeof h.c === 'string') h.c = migrateHtmlImages(h.c, state); });
+  });
+  if (data.cards && data.cards.characters) {
+    Object.keys(data.cards.characters).forEach(function (k) {
+      var c = data.cards.characters[k]; if (!c) return;
+      ['designImage', 'threeViewImage'].forEach(function (f) {
+        if (typeof c[f] === 'string' && c[f].indexOf('data:image/') === 0) {
+          var saved = saveImageDataUrl(c[f]); if (saved && saved.ok) { c[f] = saved.url; state.changed = true; }
+        }
+      });
+    });
+  }
+  if (data.cards && Array.isArray(data.cards.worlds)) {
+    data.cards.worlds.forEach(function (w) {
+      if (w && typeof w.image === 'string' && w.image.indexOf('data:image/') === 0) {
+        var saved = saveImageDataUrl(w.image); if (saved && saved.ok) { w.image = saved.url; state.changed = true; }
+      }
+    });
+  }
+  return { data: data, changed: state.changed };
+}
+function fileUrlToDataUrl(src) {
+  var p = imageSrcToBuffer(src);
+  if (!p) return '';
+  var mime = p.ext === 'jpg' ? 'image/jpeg' : ('image/' + p.ext);
+  return 'data:' + mime + ';base64,' + p.buf.toString('base64');
+}
+function inlineHtmlImages(html) {
+  if (!html || String(html).indexOf('file://') < 0) return html;
+  return String(html).replace(/(<img\b[^>]*?\bsrc\s*=\s*["'])(file:\/\/[^"']+)(["'])/gi, function (m, pre, src, post) {
+    var d = fileUrlToDataUrl(src);
+    return d ? pre + d + post : m;
+  });
+}
+// 备份 JSON 保持自包含：写入前把独立图片文件临时转回 data URL
+function inlineImagesInData(data) {
+  var copy;
+  try { copy = JSON.parse(JSON.stringify(data)); } catch (e) { return data; }
+  (Array.isArray(copy.notes) ? copy.notes : []).forEach(function (n) {
+    if (typeof n.contentHtml === 'string') n.contentHtml = inlineHtmlImages(n.contentHtml);
+    if (Array.isArray(n.hist)) n.hist.forEach(function (h) { if (h && typeof h.c === 'string') h.c = inlineHtmlImages(h.c); });
+  });
+  if (copy.cards && copy.cards.characters) {
+    Object.keys(copy.cards.characters).forEach(function (k) {
+      var c = copy.cards.characters[k]; if (!c) return;
+      ['designImage', 'threeViewImage'].forEach(function (f) {
+        if (typeof c[f] === 'string' && /^file:\/\//i.test(c[f])) { var d = fileUrlToDataUrl(c[f]); if (d) c[f] = d; }
+      });
+    });
+  }
+  if (copy.cards && Array.isArray(copy.cards.worlds)) copy.cards.worlds.forEach(function (w) {
+    if (w && typeof w.image === 'string' && /^file:\/\//i.test(w.image)) { var d = fileUrlToDataUrl(w.image); if (d) w.image = d; }
+  });
+  return copy;
+}
+// 导出时把图片文件读成 Buffer/data URL，交给导出器
+function hydrateExportImages(payload) {
+  (payload.notes || []).forEach(function (n) {
+    (n.blocks || []).forEach(function (b) {
+      if (!b || !b.img || !b.img.src) return;
+      var p = imageSrcToBuffer(b.img.src);
+      if (!p) return;
+      b.img.data = p.buf;
+      b.img.ext = p.ext;
+      b.img.dataUrl = 'data:' + (p.ext === 'jpg' ? 'image/jpeg' : 'image/' + p.ext) + ';base64,' + p.buf.toString('base64');
+      if (!b.img.w || !b.img.h) {
+        var dim = exporters.imageSize(p.buf);
+        if (dim) { b.img.w = dim.w; b.img.h = dim.h; }
+      }
+    });
+  });
+  return payload;
+}
+  /* ---------------- 未使用图片扫描 / 回收 ---------------- */
+  const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp']);
+  function imageRefBasename(ref) {
+    var s = String(ref || '');
+    try {
+      if (/^file:\/\//i.test(s)) s = fileURLToPath(s);
+    } catch (e) { }
+    s = decodeURIComponent(s);
+    var i = s.lastIndexOf('图片/');
+    if (i >= 0) s = s.slice(i + 3);
+    else s = path.basename(s);
+    return path.basename(s);
+  }
+  function scanOrphanImages(refs) {
+    const p = ensureDataDir();
+    const referenced = new Set((Array.isArray(refs) ? refs : []).map(imageRefBasename));
+    const now = Date.now();
+    const files = [];
+    let total = 0;
+    let entries = [];
+    try { entries = fs.readdirSync(p.img, { withFileTypes: true }); } catch (e) { entries = []; }
+    entries.forEach(function (ent) {
+      if (!ent.isFile()) return;
+      const ext = path.extname(ent.name).toLowerCase();
+      if (!IMAGE_EXTS.has(ext)) return;
+      if (referenced.has(ent.name)) return;
+      const full = path.join(p.img, ent.name);
+      let stat;
+      try { stat = fs.statSync(full); } catch (e) { return; }
+      // 刚插入、还没保存进笔记的图片留 10 分钟宽限期
+      if (now - stat.mtimeMs < 10 * 60 * 1000) return;
+      files.push({ name: ent.name, size: stat.size, mtime: stat.mtimeMs });
+      total += stat.size;
+    });
+    files.sort(function (a, b) { return a.mtime - b.mtime; });
+    return { ok: true, files: files, count: files.length, bytes: total, dir: p.img };
+  }
+  function cleanOrphanImages(names, refs) {
+    const p = ensureDataDir();
+    const current = scanOrphanImages(refs);
+    const allowed = new Set(current.files.map(function (f) { return f.name; }));
+    const wanted = (Array.isArray(names) ? names : []).filter(function (n) {
+      return allowed.has(path.basename(String(n)));
+    });
+    if (!wanted.length) return { ok: true, moved: 0, bytes: 0, dir: p.img };
+    const recycle = path.join(p.dir, '图片-回收', stamp());
+    fs.mkdirSync(recycle, { recursive: true });
+    let moved = 0, bytes = 0;
+    wanted.forEach(function (name) {
+      const base = path.basename(String(name));
+      const src = path.join(p.img, base);
+      const dst = path.join(recycle, base);
+      try {
+        const st = fs.statSync(src);
+        fs.renameSync(src, dst);
+        moved++; bytes += st.size;
+      } catch (e) {
+        try {
+          fs.copyFileSync(src, dst);
+          fs.unlinkSync(src);
+          moved++;
+        } catch (e2) { }
+      }
+    });
+    return { ok: true, moved: moved, bytes: bytes, dir: recycle, root: p.img };
+  }
+  function maybeBackup(data, force) {  const now = Date.now();
   if (!force && now - lastBackupAt < 10 * 60 * 1000) return null;
   lastBackupAt = now;
   const p = ensureDataDir();
   const file = path.join(p.bak, '笔记数据-' + stamp() + '.json');
   try {
-    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+    fs.writeFileSync(file, JSON.stringify(inlineImagesInData(data), null, 2), 'utf8');
     const files = fs.readdirSync(p.bak).filter(function (f) { return f.endsWith('.json'); }).sort();
     while (files.length > 50) { try { fs.unlinkSync(path.join(p.bak, files.shift())); } catch (e) { } }
     return file;
@@ -182,7 +381,12 @@ function maybeBackup(data, force) {
 }
 function readData() {
   const p = ensureDataDir();
-  try { return JSON.parse(fs.readFileSync(p.file, 'utf8')); } catch (e) { return null; }
+  try {
+    const raw = JSON.parse(fs.readFileSync(p.file, 'utf8'));
+    const r = migrateImagesInData(raw);
+    if (r.changed) { try { writeAtomic(p.file, JSON.stringify(r.data, null, 2)); } catch (e) { } }
+    return r.data;
+  } catch (e) { return null; }
 }
 function saveData(data) {
   const p = ensureDataDir();
@@ -231,6 +435,7 @@ function exportFilters() {
   };
 }
 async function makePdf(payload) {
+  hydrateExportImages(payload);
   const html = exporters.buildHtml(payload, { pdf: true });
   const tmp = path.join(app.getPath('temp'), 'xzt-export-' + Date.now() + '.html');
   fs.writeFileSync(tmp, html, 'utf8');
@@ -251,6 +456,7 @@ async function makePdf(payload) {
   }
 }
 function buildExportBuffer(kind, payload) {
+  hydrateExportImages(payload);
   switch (kind) {
     case 'txt': return Buffer.from(exporters.buildTxt(payload), 'utf8');
     case 'md': return Buffer.from(exporters.buildMarkdown(payload), 'utf8');
@@ -299,6 +505,16 @@ function registerIpc() {
     try { saveData(data); const file = maybeBackup(data, true); return { ok: true, dir: dataPaths().bak, file: file }; }
     catch (e) { return { ok: false, error: String(e && e.message || e) }; }
   });
+  ipcMain.handle('image:save', function (ev, dataUrl) {
+    try { return saveImageDataUrl(dataUrl); }
+    catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+  });
+  ipcMain.handle('images:scan', function (ev, refs) { return scanOrphanImages(refs); });
+  ipcMain.handle('images:clean', function (ev, names, refs) {
+    try { return cleanOrphanImages(names, refs); }
+    catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+  });
+  ipcMain.handle('images:open', function () { ensureDataDir(); return shell.openPath(dataPaths().img); });
   ipcMain.handle('data:openFolder', function () { shell.openPath(dataDir); return dataDir; });
   ipcMain.handle('config:chooseDir', async function () {
     const r = await dialog.showOpenDialog({
@@ -330,7 +546,20 @@ function registerIpc() {
       migrate = c.response === 0;
     }
     try {
-      if (migrate) { fs.mkdirSync(target, { recursive: true }); fs.cpSync(oldDir, target, { recursive: true, force: true }); }
+      if (migrate) {
+        fs.mkdirSync(target, { recursive: true });
+        fs.cpSync(oldDir, target, { recursive: true, force: true });
+        // 图片已经复制过去，把 JSON 里的旧绝对路径改成新路径
+        try {
+          const oldPrefix = pathToFileURL(path.join(oldDir, '图片')).href;
+          const newPrefix = pathToFileURL(path.join(target, '图片')).href;
+          const f = path.join(target, '笔记数据.json');
+          if (fs.existsSync(f)) {
+            const s = fs.readFileSync(f, 'utf8');
+            if (s.indexOf(oldPrefix) >= 0) fs.writeFileSync(f, s.split(oldPrefix).join(newPrefix), 'utf8');
+          }
+        } catch (e) { }
+      }
       dataDir = target;
       saveConfig(Object.assign(loadConfig(), { dataDir: dataDir }));
       ensureDataDir();
@@ -367,7 +596,7 @@ function registerIpc() {
       properties: ['openFile']
     });
     if (r.canceled || !r.filePaths || !r.filePaths.length) return { ok: false };
-    try { return { ok: true, data: JSON.parse(fs.readFileSync(r.filePaths[0], 'utf8')), file: r.filePaths[0] }; }
+    try { return { ok: true, data: migrateImagesInData(JSON.parse(fs.readFileSync(r.filePaths[0], 'utf8'))).data, file: r.filePaths[0] }; }
     catch (e) { return { ok: false, error: String(e && e.message || e) }; }
   });
   ipcMain.handle('app:info', function () { return { version: app.getVersion(), dataDir: dataDir }; });

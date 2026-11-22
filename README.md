@@ -2,7 +2,7 @@
 
 一个给写小说 / 写视觉小说剧本用的桌面写作软件（Electron，Windows x64）。
 
-中文名「写作台」，英文名 **WriteDesk**。
+中文名「写作台」，英文名 **WriteDesk**（意译，不采用音译 xiezuotai）。
 
 - 版本：**X3.2.1**
 - 平台：Windows 10 / 11（x64）
@@ -22,6 +22,22 @@
 
 > 安装包使用自签名证书签名。Windows 可能仍提示「未知发布者」，点「更多信息」→「仍要运行」即可；要完全消除提示需要受信任的代码签名证书。
 
+## 演示
+
+> 以下截图取自 X3.2.1 实际界面，数据为演示示例。
+
+<p align="center">
+  <img src="docs/screenshots/demo-editor.png" alt="编辑与剧本模式" width="49%">
+  <img src="docs/screenshots/demo-cards.png" alt="角色设定卡" width="49%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/demo-outline.png" alt="大纲与速查" width="49%">
+  <img src="docs/screenshots/demo-onboarding.png" alt="新手引导" width="49%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/demo-focus.png" alt="专注模式" width="80%">
+</p>
+
 ## X3.2.1 新增：图片管理
 
 设置 → 图片管理：
@@ -31,6 +47,8 @@
 - 10 分钟内新插入的图片不参与清理
 - 只移动到 `图片-回收` 文件夹，不直接删除
 - 不会自动清理，必须手动点按钮并确认
+
+> 3.2.1 构建修正：新手引导标题里的版本号从旧的 `WriteDesk 3.0` 修正为 `WriteDesk 3.2.1`。
 
 ## X3.2.0 主要修复
 

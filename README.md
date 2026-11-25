@@ -2,7 +2,7 @@
 
 一个给写小说 / 写视觉小说剧本用的桌面写作软件（Electron，Windows x64）。
 
-中文名「写作台」，英文名 **WriteDesk**（意译，不采用音译 xiezuotai）。
+中文名「写作台」，英文名 **WriteDesk**。
 
 - 版本：**X3.2.1**
 - 平台：Windows 10 / 11（x64）
